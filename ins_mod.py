@@ -255,13 +255,9 @@ class Inspector(FloatLayout):
         keys = widget_string.split(", ")
         keys.sort()
         node = None
-        #wk_widget = weakref.ref(widget)
         for key in keys:
             text = '%s' % key
             node = TreeViewProperty(text=text, key=key)
-            #node.bind(is_selected=self.show_property)
-            #widget.bind(**{key: partial(
-            #    self.update_node_content, weakref.ref(node))})
             treeview.add_node(node)
 
     def show_options_remove(self):
