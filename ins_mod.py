@@ -32,6 +32,7 @@ import kivy
 kivy.require('1.0.9')
 
 import weakref
+import pkgutil
 from kivy.animation import Animation
 from kivy.logger import Logger
 from kivy.uix.widget import Widget
@@ -54,7 +55,7 @@ from kivy.clock import Clock
 from functools import partial
 from kivy.lang import Builder
 from kivy.vector import Vector
-
+from kivy.factory import Factory
 
 Builder.load_string('''
 <Inspector>:
@@ -98,7 +99,7 @@ Builder.load_string('''
                 text: '+'
                 size_hint_x: None
                 width: 50
-                on_release: root.show_options_add()
+                on_release: root.show_options_add(True)
             
             Button:
                 text: '-'
@@ -116,7 +117,7 @@ Builder.load_string('''
 
             Button:
                 text: '%r' % root.widget
-                on_release: print root.widget and root.show_widget_info()
+                on_release: root.show_widget_info()
 
             Button:
                 text: 'X'
@@ -185,10 +186,16 @@ class Inspector(FloatLayout):
     inspect_enabled = BooleanProperty(False)
 
     activated = BooleanProperty(False)
-
+    widget_add = BooleanProperty(False)
     widget_info = BooleanProperty(False)
 
     content = ObjectProperty(None)
+    
+    #Set up widget factories
+    for i in pkgutil.iter_modules(path=kivy.uix.__path__):
+        module_name = "kivy.uix."+i[1]
+        class_name = i[1].title()
+        Factory.register(class_name, module=module_name)
 
     def __init__(self, **kwargs):
         super(Inspector, self).__init__(**kwargs)
@@ -235,7 +242,8 @@ class Inspector(FloatLayout):
         win.add_widget(self)
         self.avoid_bring_to_top = False
         
-    def show_options_add(self):
+    def show_options_add(self,check):
+        self.widget_add = check
         self.content.clear_widgets()
         widget = self.widget
         treeview = self.treeview
@@ -250,25 +258,39 @@ class Inspector(FloatLayout):
         Animation(top=250, t='out_quad', d=.3).start(self.layout)
         for node in list(treeview.iterate_all_nodes())[:]:
             treeview.remove_node(node)
-
-        widget_string = "Label, Button, Image, Slider, Progress Bar, Text Input, Toggle button, Switch, Video"
-        keys = widget_string.split(", ")
+        keys=[]
+        for i in pkgutil.iter_modules(path=kivy.uix.__path__):
+            keys.append(i[1]) 
         keys.sort()
         node = None
         for key in keys:
             text = '%s' % key
             node = TreeViewProperty(text=text, key=key)
+            node.bind(is_selected = self.add_new_widget)
             treeview.add_node(node)
 
+    def add_new_widget(self, instance, value, key=None, index=-1, *l):
+        if self.widget_add:
+            class_name = instance.key.title()
+            factory_caller = getattr(Factory,class_name)
+            new_widget = factory_caller()
+            self.widget.add_widget(new_widget)
+            self.inspect_enabled = False
+            Animation(top=60, t='out_quad', d=.3).start(self.layout)
+            self.widget_add = False
+        
+        
     def show_options_remove(self):
         widget = self.widget
         if not widget:
             Animation(top=60, t='out_quad', d=.3).start(self.layout)
             self.widget_info = False
             return
-        parent = self.find_parent(self.win,widget)
+        parent = widget.parent
+        if not parent or parent == self.win:
+            return
         parent.remove_widget(widget)
-    
+        
     def find_parent(self,root,widget):
         for child in root.children:
             if widget in child.children:
