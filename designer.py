@@ -83,8 +83,7 @@ class designer(FloatLayout):
         
     def drag(self,widget,touch):
         if widget.collide_point(touch.x,touch.y):
-            widget.x = touch.x-widget.width/2
-            widget.y = touch.y-widget.top/2
+            widget.center = touch.pos
         
     def build(self):
         keys=[]
@@ -103,6 +102,7 @@ class designer(FloatLayout):
         class_name = instance.text
         factory_caller = getattr(Factory,class_name)
         new_widget = factory_caller(size_hint=(.2,.2))
+        new_widget.bind(on_touch_move = self.drag)
         self.canvas_area.add_widget(new_widget)
             
 class DesignerApp(App):
