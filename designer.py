@@ -64,51 +64,7 @@ Builder.load_string('''#:kivy 1.0.9
                         size_hint_x: None
                     TreeViewLabel:
                         text:'Button'
-#<TreeViewProperty>:
-#    Label:
-#        text_size: (self.width, None)
-#        width: 150
-#        size_hint_x: None
-                
-#        FloatLayout:
-#            id:widget_box
-#            size_hint:0.2,1
-#            pos_hint:.8,0
-#            Widget:
-#                pos:self.parent.pos
-#                id:prog_bar
-#                on_touch_move:root.drag(*args)
-#                canvas:
-#                    Color:
-#                        rgb:.1,.6,.7
-#                    Rectangle:
-#                        pos:self.pos
-#                        size:self.size
-#                Label:
-#                    pos:self.parent.pos
-#                    text:'Progress Bar'
-#                        
-#            Widget:
-#                #pos_hint:0,.3
-#                canvas:
-#                    Color:
-#                        rgb:.2,.8,.2
-#                    Rectangle:
-#                        pos:self.pos
-#                        size:self.size
-#                Label:
-#                    pos:self.parent.pos
-#                    text:'Switch'
-#            Widget:
-#                canvas:
-#                    Color:
-#                        rgb:.2,.9,.7
-#                    Rectangle:
-#                        pos:self.pos
-#                        size:self.size
-#                Label:
-#                    pos:self.parent.pos
-#                    text:'Button'
+
                        ''')
 
 #class TreeViewProperty(BoxLayout,TreeViewNode):
