@@ -33,7 +33,7 @@ Builder.load_string('''#:kivy 1.0.9
             size_hint:.8,1
             canvas:
                 Color:
-                    rgb:0,.1,.5
+                    rgb:0,.4,.5
                 Rectangle:
                     pos: self.x, self.y
                     size: self.width,self.top
