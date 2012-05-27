@@ -1,6 +1,6 @@
 import kivy
 kivy.require('1.0.9')
-import random
+
 from kivy.app import App
 from kivy.uix.widget import Widget
 from kivy.uix.floatlayout import FloatLayout
@@ -12,11 +12,15 @@ from kivy.lang import Builder
 from kivy.properties import ObjectProperty, BooleanProperty, ListProperty, \
         NumericProperty, StringProperty, OptionProperty, \
         ReferenceListProperty, AliasProperty
+from kivy.graphics import Color, Rectangle, PushMatrix, PopMatrix, \
+        Translate, Rotate,Scale
 from kivy.uix.treeview import TreeViewNode
 from kivy.uix.treeview import TreeView
 from kivy.uix.treeview import TreeViewLabel
 from kivy.factory import Factory
+from kivy.vector import Vector
 import pkgutil
+import random
 
 Builder.load_string('''#:kivy 1.0.9
 <designer>:
@@ -33,11 +37,12 @@ Builder.load_string('''#:kivy 1.0.9
             size_hint:.8,1
             canvas:
                 Color:
-                    rgb:0,.4,.5
+                    rgb:1,.9,.8
                 Rectangle:
                     pos: self.x, self.y
                     size: self.width,self.top
             Label:
+                color:0,0,0,1
                 text:'Canvas Area'
                 text_size:(300,300)
                 pos:150,200
@@ -48,42 +53,46 @@ Builder.load_string('''#:kivy 1.0.9
                 
         #widgets box
         BoxLayout:
-            size_hint:.2,1
+            size_hint:.4,1
             ScrollView:
                 TreeView:
                     id: treeview
                     size_hint_y: None
                     hide_root: True
                     height: self.minimum_height
-                    TreeViewLabel:
-                        pos_hint:None,.5
-                        text:'Widgets'
-                        text_size:self.width,None
-                        width:150
-                        height:200
-                        size_hint_x: None
-                    TreeViewLabel:
-                        text:'Button'
+                    
+<TreeViewProperty>:
+    height:25
+    Label:
+        bold:True
+        text:root.lkey if root.lkey else ""
+        text_size: (self.width,None)
+        width:self.width
+        size_hint_x: None
+    Label:
+        shorten:True
+        color:0.39,1,.2,1
+        text:root.rkey if root.rkey else ""
+        text_size: (self.width,None)
+        width:self.width
+        size_hint_x: None
+                    ''')
 
-                       ''')
-
-#class TreeViewProperty(BoxLayout,TreeViewNode):
-#    pass
-    #lkey = ObjectProperty(None)
+class TreeViewProperty(BoxLayout,TreeViewNode):
+    lkey = ObjectProperty(None)
+    rkey = ObjectProperty(None)
     
 class designer(FloatLayout):
     canvas_area = ObjectProperty(None)
     treeview = ObjectProperty(None)
     win = ObjectProperty(None)
+    saved_nodes = ObjectProperty(None)
+    saved_nodes = []
     
     for entry in pkgutil.iter_modules(path=kivy.uix.__path__):
         module_name = "kivy.uix."+entry[1]
         class_name = entry[1].title()
         Factory.register(class_name, module=module_name)
-        
-    def drag(self,widget,touch):
-        if widget.collide_point(touch.x,touch.y):
-            widget.center = touch.pos
         
     def build(self):
         keys=[]
@@ -97,14 +106,60 @@ class designer(FloatLayout):
             node = TreeViewLabel(text=text)
             node.bind(is_selected = self.add_new_widget)
             self.treeview.add_node(node)
-            
+            self.saved_nodes.append(node)
+        
     def add_new_widget(self, instance, value,index=-1, *l):
-        class_name = instance.text
-        factory_caller = getattr(Factory,class_name)
-        new_widget = factory_caller(size_hint=(.2,.2))
-        new_widget.bind(on_touch_move = self.drag)
-        self.canvas_area.add_widget(new_widget)
+        if instance.is_selected:
+            class_name = instance.text
+            factory_caller = getattr(Factory,class_name)
+            new_widget = factory_caller(size_hint=(.2,.2))
+            new_widget.bind(on_touch_move = self.drag)
+            new_widget.bind(on_touch_up = self.show_properties)
+            self.canvas_area.add_widget(new_widget)
+            instance.is_selected = False
+    
+    def drag(self,widget,touch):
+        if widget.collide_point(touch.x,touch.y):
+            widget.center = touch.pos
             
+    def show_properties(self,widget,touch):
+        treeview = self.treeview
+        temp = list(treeview.iterate_all_nodes())
+        for node in temp:
+            treeview.remove_node(node)
+        #Why does treeview loose all sense of parents?
+        #Why aren't nodes added to it? Do we have to return this treeview?
+        treeview.height = 30
+        node = TreeViewLabel(text="< BACK TO ADD MORE WIDGETS",color=[1,1,0,1],bold=True)
+        node.bind(is_selected=self.build_menu)
+        treeview.add_node(node)
+        treeview.height = 25
+        keys = widget.properties().keys()
+        keys.sort()
+        node = None
+        for key in keys:
+            text = '%s' % key
+            node = TreeViewProperty()
+            node.lkey = text
+            node.rkey = str(getattr(widget,key))
+            node.bind(is_selected = self.print_info)
+            treeview.add_node(node)
+                    
+    def print_info(self,instance,*largs):
+        if instance.is_selected:
+            print instance.lkey,instance.rkey
+            instance.is_selected = False
+            
+    def build_menu(self,instance,*largs):
+        if instance.is_selected:
+            treeview = self.treeview
+            temp = list(treeview.iterate_all_nodes())
+            for node in temp:
+                treeview.remove_node(node)
+            for node in self.saved_nodes:
+                treeview.add_node(node)
+            instance.is_selected = False    
+        
 class DesignerApp(App):
     tool = ObjectProperty(None)
     def build(self):
@@ -112,8 +167,6 @@ class DesignerApp(App):
         self.tool.build()
         return self.tool
     
-    
-        
 #Factory.register("TreeViewProperty",TreeViewProperty)
 
 if __name__ in ('__android__', '__main__'):
