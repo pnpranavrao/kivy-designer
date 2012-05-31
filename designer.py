@@ -43,7 +43,7 @@ Builder.load_string('''#:kivy 1.0.9
                 id:canvas_area
                 canvas:
                     Color:
-                        rgb:1,.9,.8
+                        rgb:.9,.9,.8,
                     Rectangle:
                         pos: self.x, self.y
                         size: self.width,self.top
@@ -95,6 +95,7 @@ class TreeViewProperty(BoxLayout,TreeViewNode):
     rkey = ObjectProperty(None)
     
 class designer(FloatLayout):
+    widget = ObjectProperty(None)
     status_bar = ObjectProperty(None)
     canvas_area = ObjectProperty(None)
     treeview = ObjectProperty(None)
@@ -102,13 +103,29 @@ class designer(FloatLayout):
     saved_nodes = ObjectProperty(None)
     saved_nodes = []
     widget_list = {}
+    exclude_list = ["VideoPlayer","VideoPlayerVolume","VideoPlayerPlayPause","VideoPlayerProgressBar"]
     # get any widgets in kivy.uix directory
     for cls in Factory.classes:
+        if cls in exclude_list:
+            continue
         module_string = str(Factory.classes[cls]['module'])
         # if module is from current projects uix directory(user defined widgets) or 'kivy.uix' (kivy defined widgets)
         if module_string.startswith(('uix', 'kivy.uix')):
             widget_list[cls]=str(Factory.classes[cls]['module'])
             Factory.register(cls,module=widget_list[cls])
+            
+    def __init__(self,**kwargs):
+        super(designer, self).__init__(**kwargs)
+        with self.canvas.after:
+            self.gcolor = Color(1, 1, 0, .25)
+            PushMatrix()
+            self.gtranslate = Translate(0, 0, 0)
+            self.grotate = Rotate(0, 0, 0, 1)
+            self.gscale = Scale(1.)
+            self.grect = Rectangle(size=(0, 0))
+            PopMatrix()
+    #What does push and pop matrix do exactly?
+    #Why is the response of self.grect a bit jerky?
         
     def build(self):
         keys=[]
@@ -136,24 +153,29 @@ class designer(FloatLayout):
             self.treeview.add_node(node)
             self.saved_nodes.append(node)
     
-    def print_status(self,msg):
+    def print_status(self,msg,t=3):
         """Provide a string as an argument to print it out in the status bar for 2 seconds"""
         label = self.status_bar
-        label.text = "[b]Status Bar[/b] "+msg
-        g = lambda x,y:""
-        Clock.schedule_interval(self.clear_status, 2)
+        label.text = "[b]Status Bar : [/b] "+msg
+        Clock.unschedule(self.clear_status)
+        Clock.schedule_once(self.clear_status,t)
         
     def clear_status(self,*largs):
-        """Small function to clear the status bar after n seconds"""
+        """Small function to clear the status bar after time seconds"""
         self.status_bar.text = ""
         
     def add_new_widget(self, instance, value,index=-1, *l):
         if instance.is_selected:
             class_name = instance.text
             factory_caller = getattr(Factory,class_name)
-            new_widget = factory_caller(size_hint=(.2,.2))
+            temp_pos_hint = (random.random(),random.random())
+            '''The above is a temp solution as widgets in the same spot 
+            stick due to same on_touch_move calls. Will have to offer some 
+            kind of layer options support (temp_pos_hint[0],temp_pos_hint[1])'''
+            new_widget = factory_caller(size_hint=(0.2,0.2))
+            #new_widget.pos_hint=(.3,.3)
             new_widget.bind(on_touch_move = self.drag)
-            new_widget.bind(on_touch_up = self.show_properties)
+            new_widget.bind(on_touch_down = self.show_properties)
             self.canvas_area.add_widget(new_widget)
             instance.is_selected = False
 
@@ -162,6 +184,8 @@ class designer(FloatLayout):
             widget.center = touch.pos
             
     def show_properties(self,widget,touch):
+        self.print_status("Focussed on %s"%(str(widget)),t=6)
+        self.widget = widget
         treeview = self.treeview
         temp = list(treeview.iterate_all_nodes())
         for node in temp:
@@ -183,6 +207,25 @@ class designer(FloatLayout):
             node.rkey = str(getattr(widget,key))
             node.bind(is_selected = self.print_info)
             treeview.add_node(node)
+        Clock.schedule_interval(self.highlight_at,0)
+            
+    def highlight_at(self,*largs):
+        gr = self.grect
+        widget = self.widget
+        # determine rotation
+        a = Vector(1, 0)
+        b = Vector(widget.to_window(*widget.to_parent(0, 0)))
+        c = Vector(widget.to_window(*widget.to_parent(1, 0))) - b
+        angle = -a.angle(c)
+
+        # determine scale
+        scale = c.length()
+
+        # apply transform
+        gr.size = widget.size
+        self.gtranslate.xy = Vector(widget.to_window(*widget.pos))
+        self.grotate.angle = angle
+        self.gscale.scale = scale
                     
     def print_info(self,instance,*largs):
         if instance.is_selected:
