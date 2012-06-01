@@ -81,7 +81,7 @@ Builder.load_string('''#:kivy 1.0.9
         text_size: (self.width,None)
         width:self.width
         size_hint_x: None
-    Label:
+    TextInput:
         shorten:True
         color:0.39,1,.2,1
         text:root.rkey if root.rkey else ""
@@ -184,6 +184,7 @@ class designer(FloatLayout):
             widget.center = touch.pos
             
     def show_properties(self,widget,touch):
+        #self.treeview.toggle_node()
         self.print_status("Focussed on %s"%(str(widget)),t=6)
         self.widget = widget
         treeview = self.treeview
@@ -192,11 +193,18 @@ class designer(FloatLayout):
             treeview.remove_node(node)
         #Why does treeview loose all sense of parents?
         #Why aren't nodes added to it? Do we have to return this treeview?
+        '''Adding a back button'''
         treeview.height = 30
         node = TreeViewLabel(text="< BACK TO ADD MORE WIDGETS",color=[1,1,0,1],bold=True)
         node.bind(is_selected=self.build_menu)
         treeview.add_node(node)
+        
+        '''Adding a delete button'''
+        node = TreeViewLabel(text= "Delete this widget",color=[1,0,0,1])
+        node.bind(is_selected=self.delete_item)
+        treeview.add_node(node)
         treeview.height = 25
+        
         keys = widget.properties().keys()
         keys.sort()
         node = None
@@ -208,6 +216,18 @@ class designer(FloatLayout):
             node.bind(is_selected = self.print_info)
             treeview.add_node(node)
         Clock.schedule_interval(self.highlight_at,0)
+    
+    def delete_item(self,instance,*largs):
+        if instance.is_selected:
+            canvas_area = self.canvas_area
+            canvas_area.remove_widget(self.widget)
+            self.build_menu(True)
+            
+            #We have to stop highlighing
+            Clock.unschedule(self.highlight_at)
+            self.grect.size = (0,0)
+            #self.treeview.toggle_node()
+            
             
     def highlight_at(self,*largs):
         gr = self.grect
@@ -233,14 +253,26 @@ class designer(FloatLayout):
             instance.is_selected = False
             
     def build_menu(self,instance,*largs):
-        if instance.is_selected:
+        '''This is a general purpose function that builds the main menu at anytime
+        when it called with a True value'''
+        check = False
+        try:
+            check = instance.is_selected
+        except:
+             pass
+        if check or instance:
             treeview = self.treeview
             temp = list(treeview.iterate_all_nodes())
             for node in temp:
                 treeview.remove_node(node)
             for node in self.saved_nodes:
                 treeview.add_node(node)
-            instance.is_selected = False    
+            try:
+                pass
+                #self.treeview.toggle_node()
+            except:
+                pass
+                '''Do nothing. It was not called by a treeview'''    
         
 class DesignerApp(App):
     tool = ObjectProperty(None)
