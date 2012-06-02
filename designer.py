@@ -3,6 +3,7 @@ kivy.require('1.0.9')
 
 from kivy.app import App
 from kivy.uix.widget import Widget
+from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.layout import Layout
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.boxlayout import BoxLayout
@@ -73,7 +74,30 @@ Builder.load_string('''#:kivy 1.0.9
                     hide_root: True
                     height: self.minimum_height
                     
-<TreeViewProperty>:
+<TreeViewPropertyLabel>:
+    toggle:toggle
+    height:25
+    Label:
+        bold:True
+        text:root.lkey if root.lkey else ""
+        text_size: (self.width,None)
+        width:self.width
+        size_hint_x: None
+    Label:
+        shorten:True
+        color:0.39,1,.2,1
+        text:root.rkey if root.rkey else ""
+        text_size: (self.width,None)
+        width:self.width
+        size_hint_x: None
+    ToggleButton:
+        id:toggle
+        border:0,0,0,0
+        #on_state:.edit_properties()
+        
+<TreeViewPropertyText>:
+    toggle:toggle
+    textbox:textbox
     height:25
     Label:
         bold:True
@@ -82,17 +106,91 @@ Builder.load_string('''#:kivy 1.0.9
         width:self.width
         size_hint_x: None
     TextInput:
+        id:textbox
         shorten:True
         color:0.39,1,.2,1
         text:root.rkey if root.rkey else ""
         text_size: (self.width,None)
         width:self.width
         size_hint_x: None
-                    ''')
+    ToggleButton:
+        id:toggle
+        border:0,0,0,0
+        #on_state:.edit_properties()
+             ''')
 
-class TreeViewProperty(BoxLayout,TreeViewNode):
+
+class TreeViewPropertyLabel(BoxLayout,TreeViewNode):
+    '''This is a node structure that contains 2 labels and a toggle. A toggle state change,
+    triggers a textinput box and accepts changes'''
+    layout = ObjectProperty(None)
+    widget = ObjectProperty(None)
     lkey = ObjectProperty(None)
     rkey = ObjectProperty(None)
+    toggle = ObjectProperty(None)
+    
+"""Lesson learnt : In the .kv file, you can only bind properties to functions
+ of the same class. So as TreeViewPropertyLabel/Text becomes a different class, passing
+ the parameters between these two classes become very messy. Commenting the approach taken below
+ as it was giving rise to segmentation faults."""
+#    def __init__(self):
+#        self.layout = layout
+#        self.widget = layout.widget
+#    
+    
+#    def edit_properties(self):
+#        if self.state=='down':
+#            layout = self.layout
+#            widget = self.widget
+#            #Cleaning up old treeview selections
+#            node = layout.treeview.selected_node
+#            layout.treeview.toggle_node(node)
+#            
+#            layout.print_status("Focussed on %s"%(str(widget)),t=6)
+#            
+#            treeview = layout.treeview
+#            temp = list(treeview.iterate_all_nodes())
+#            for node in temp:
+#                treeview.remove_node(node)
+#            #TODO
+#            #Why does treeview loose all sense of parents?
+#            #Why aren't nodes added to it? Do we have to return this treeview?
+#            '''Adding a back button'''
+#            treeview.height = 30
+#            node = TreeViewLabel(text="< BACK TO ADD MORE WIDGETS",color=[1,1,0,1],bold=True)
+#            node.bind(is_selected=layout.build_menu)
+#            treeview.add_node(node)
+#            
+#            '''Adding a delete button'''
+#            node = TreeViewLabel(text= "Delete this widget",color=[1,0,0,1])
+#            node.bind(is_selected=layout.delete_item)
+#            treeview.add_node(node)
+#            treeview.height = 25
+#            
+#            keys = widget.properties().keys()
+#            keys.sort()
+#            node = None
+#            for key in keys:
+#                text = '%s' % key
+#                node = TreeViewProperty1()
+#                node.lkey = text
+#                node.rkey = str(getattr(widget,key))
+#                node.bind(is_selected = layout.print_info)
+#                treeview.add_node(node)
+#            Clock.schedule_interval(layout.highlight_at,0)
+#            self.state = "normal"
+    
+class TreeViewPropertyText(BoxLayout,TreeViewNode):
+    lkey = ObjectProperty(None)
+    rkey = ObjectProperty(None)
+    layout = ObjectProperty(None)
+    widget = ObjectProperty(None)
+    toggle = ObjectProperty(None)
+    textbox = ObjectProperty(None)
+    
+    def print_temp(self):
+        print layout,widget
+        
     
 class designer(FloatLayout):
     widget = ObjectProperty(None)
@@ -128,6 +226,9 @@ class designer(FloatLayout):
     #Why is the response of self.grect a bit jerky?
         
     def build(self):
+        '''Builds the widget_menu for the first time, and this function is never
+        called again. While building all the widget nodes are saved in a list called
+        self.saved_nodes. In future drawing of the widget menu, this list is used'''
         keys=[]
         for cls in self.widget_list:
             if cls == "Camera":
@@ -184,13 +285,21 @@ class designer(FloatLayout):
             widget.center = touch.pos
             
     def show_properties(self,widget,touch):
-        #self.treeview.toggle_node()
+        '''This function is called whenever an added widget is selected in the canvas area.
+        It draws the widget properties bar on the right, and sets up a highlighting area around
+        the selected widget'''
+        
+        #Cleaning up old treeview selections
+        node = self.treeview.selected_node
+        self.treeview.toggle_node(node)
+        
         self.print_status("Focussed on %s"%(str(widget)),t=6)
         self.widget = widget
         treeview = self.treeview
         temp = list(treeview.iterate_all_nodes())
         for node in temp:
             treeview.remove_node(node)
+        #TODO
         #Why does treeview loose all sense of parents?
         #Why aren't nodes added to it? Do we have to return this treeview?
         '''Adding a back button'''
@@ -210,12 +319,31 @@ class designer(FloatLayout):
         node = None
         for key in keys:
             text = '%s' % key
-            node = TreeViewProperty()
+            node = TreeViewPropertyLabel()
+            #node = TreeViewProperty1(widget=self.widget,layout=self)
+            node.toggle.bind(state=self.save_edits)
             node.lkey = text
             node.rkey = str(getattr(widget,key))
-            node.bind(is_selected = self.print_info)
+            #node.bind(is_selected = self.print_info)
             treeview.add_node(node)
-        Clock.schedule_interval(self.highlight_at,0)
+            Clock.schedule_interval(self.highlight_at,0)
+            
+    def save_edits(self,toggle,state):
+        '''This function is executed then the toggle button is down. It creates a TextInput 
+        accept changes, and calls a save_property function whenever TextInput.text is changed'''
+        if state=='down':
+            node = toggle.parent
+            lkey = node.lkey
+            rkey = node.rkey
+            treeview = self.treeview
+            treeview.remove_node(node)
+            node = TreeViewPropertyText()
+            node.lkey = lkey
+            node.rkey = rkey
+            node.toggle.state = 'down'
+            node.textbox.bind(text=self.print_status("text input change recognised"))
+            #^^This will be replaced by a function to save changed property
+            treeview.add_node(node)
     
     def delete_item(self,instance,*largs):
         if instance.is_selected:
@@ -246,7 +374,7 @@ class designer(FloatLayout):
         self.gtranslate.xy = Vector(widget.to_window(*widget.pos))
         self.grotate.angle = angle
         self.gscale.scale = scale
-                    
+                        
     def print_info(self,instance,*largs):
         if instance.is_selected:
             print instance.lkey,instance.rkey
@@ -254,7 +382,8 @@ class designer(FloatLayout):
             
     def build_menu(self,instance,*largs):
         '''This is a general purpose function that builds the main menu at anytime
-        when it called with a True value'''
+        when it called with a True value. It uses the list self.saved_nodes to 
+        draw the main widget menu'''
         check = False
         try:
             check = instance.is_selected
