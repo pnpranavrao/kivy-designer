@@ -15,7 +15,7 @@ from kivy.properties import ObjectProperty, BooleanProperty, ListProperty, \
         NumericProperty, StringProperty, OptionProperty, \
         ReferenceListProperty, AliasProperty
 from kivy.graphics import Color, Rectangle, PushMatrix, PopMatrix, \
-        Translate, Rotate,Scale
+        Translate, Rotate, Scale
 from kivy.uix.treeview import TreeViewNode
 from kivy.uix.treeview import TreeView
 from kivy.uix.treeview import TreeViewLabel
@@ -23,6 +23,7 @@ from kivy.factory import Factory
 from kivy.vector import Vector
 from kivy.clock import Clock
 import random
+import weakref
 from functools import partial
 
 Builder.load_string('''#:kivy 1.0.9
@@ -53,17 +54,17 @@ Builder.load_string('''#:kivy 1.0.9
                     text:'Canvas Area'
                     text_size:(300,300)
                     pos:150,200
-                    #Doubts :
-                    #size_hint:0.2,0.2 >>Also screws things up
-                    #pos_hint:(.5,.5) >> Why doesn't this work?
-                    #pos:root.width/2,root.top/2 >> how to reference FloatLayout?
             #Statusbar
             Label:
+                size_hint:1,.05
                 markup:True
                 id:status_bar
                 text:self.text if self.text else ""
-                size_hint:1,.05
+<<<<<<< Updated upstream
+                
                     
+=======
+>>>>>>> Stashed changes
         #widgets box
         BoxLayout:
             size_hint:.3,1
@@ -96,12 +97,11 @@ Builder.load_string('''#:kivy 1.0.9
         #on_state:.edit_properties()
         
 <TreeViewPropertyText>:
-    toggle:toggle
     textbox:textbox
     height:25
     Label:
         bold:True
-        text:root.lkey if root.lkey else ""
+        text:root.key if root.widget else ""
         text_size: (self.width,None)
         width:self.width
         size_hint_x: None
@@ -109,20 +109,37 @@ Builder.load_string('''#:kivy 1.0.9
         id:textbox
         shorten:True
         color:0.39,1,.2,1
-        text:root.rkey if root.rkey else ""
+        text:repr(getattr(root.widget,root.key)) if root.widget else ''
+        text_size: (self.width,None)
+        width:self.width
+        size_hint_x: None
+
+<TreeViewPropertyBoolean>:
+    toggle:toggle
+    height:25
+    Label:
+        bold:True
+        text:root.key if root.widget else ""
         text_size: (self.width,None)
         width:self.width
         size_hint_x: None
     ToggleButton:
         id:toggle
-        border:0,0,0,0
-        #on_state:.edit_properties()
-             ''')
+        shorten:True
+        color:0.39,1,.2,1
+        state:self.state
+        text:"    True" if toggle.state=='down' else "   False"
+        #How do we set alignment in this text?
+        text_size: (self.width,None)
+        width:self.width
+        size_hint_x: None
+            ''')
 
 
 class TreeViewPropertyLabel(BoxLayout,TreeViewNode):
-    '''This is a node structure that contains 2 labels and a toggle. A toggle state change,
-    triggers a textinput box and accepts changes'''
+    '''This is a node structure that contains 2 labels 
+    and a toggle. A toggle state change, triggers a 
+    textinput box and accepts changes'''
     layout = ObjectProperty(None)
     widget = ObjectProperty(None)
     lkey = ObjectProperty(None)
@@ -133,65 +150,79 @@ class TreeViewPropertyLabel(BoxLayout,TreeViewNode):
  of the same class. So as TreeViewPropertyLabel/Text becomes a different class, passing
  the parameters between these two classes become very messy. Commenting the approach taken below
  as it was giving rise to segmentation faults."""
-#    def __init__(self):
-#        self.layout = layout
-#        self.widget = layout.widget
-#    
-    
-#    def edit_properties(self):
-#        if self.state=='down':
-#            layout = self.layout
-#            widget = self.widget
-#            #Cleaning up old treeview selections
-#            node = layout.treeview.selected_node
-#            layout.treeview.toggle_node(node)
-#            
-#            layout.print_status("Focussed on %s"%(str(widget)),t=6)
-#            
-#            treeview = layout.treeview
-#            temp = list(treeview.iterate_all_nodes())
-#            for node in temp:
-#                treeview.remove_node(node)
-#            #TODO
-#            #Why does treeview loose all sense of parents?
-#            #Why aren't nodes added to it? Do we have to return this treeview?
-#            '''Adding a back button'''
-#            treeview.height = 30
-#            node = TreeViewLabel(text="< BACK TO ADD MORE WIDGETS",color=[1,1,0,1],bold=True)
-#            node.bind(is_selected=layout.build_menu)
-#            treeview.add_node(node)
-#            
-#            '''Adding a delete button'''
-#            node = TreeViewLabel(text= "Delete this widget",color=[1,0,0,1])
-#            node.bind(is_selected=layout.delete_item)
-#            treeview.add_node(node)
-#            treeview.height = 25
-#            
-#            keys = widget.properties().keys()
-#            keys.sort()
-#            node = None
-#            for key in keys:
-#                text = '%s' % key
-#                node = TreeViewProperty1()
-#                node.lkey = text
-#                node.rkey = str(getattr(widget,key))
-#                node.bind(is_selected = layout.print_info)
-#                treeview.add_node(node)
-#            Clock.schedule_interval(layout.highlight_at,0)
-#            self.state = "normal"
     
 class TreeViewPropertyText(BoxLayout,TreeViewNode):
     lkey = ObjectProperty(None)
     rkey = ObjectProperty(None)
     layout = ObjectProperty(None)
-    widget = ObjectProperty(None)
     toggle = ObjectProperty(None)
     textbox = ObjectProperty(None)
+    widget_ref = ObjectProperty(None, allownone=True)
+
+    def _get_widget(self):
+        wr = self.widget_ref
+        if wr is None:
+            return None
+        wr = wr()
+        if wr is None:
+            self.widget_ref = None
+            return None
+        return wr
+    widget = AliasProperty(_get_widget, None, bind=('widget_ref', ))
+    key = ObjectProperty(None, allownone=True)
+
+class TreeViewPropertyBoolean(BoxLayout,TreeViewNode):
+    lkey = ObjectProperty(None)
+    toggle = ObjectProperty(None)
+    key = ObjectProperty(None, allownone=True)
+    widget_ref = ObjectProperty(None, allownone=True)
+
+    def _get_widget(self):
+        wr = self.widget_ref
+        if wr is None:
+            return None
+        wr = wr()
+        if wr is None:
+            self.widget_ref = None
+            return None
+        return wr
+    widget = AliasProperty(_get_widget, None, bind=('widget_ref', ))
     
-    def print_temp(self):
-        print layout,widget
-        
+<<<<<<< Updated upstream
+    widget_ref = ObjectProperty(None, allownone=True)
+
+    def _get_widget(self):
+        wr = self.widget_ref
+        if wr is None:
+            return None
+        wr = wr()
+        if wr is None:
+            self.widget_ref = None
+            return None
+        return wr
+    widget = AliasProperty(_get_widget, None, bind=('widget_ref', ))
+    key = ObjectProperty(None, allownone=True)
+
+class TreeViewPropertyBoolean(BoxLayout,TreeViewNode):
+    lkey = ObjectProperty(None)
+    toggle = ObjectProperty(None)
+    key = ObjectProperty(None, allownone=True)
+    widget_ref = ObjectProperty(None, allownone=True)
+
+    def _get_widget(self):
+        wr = self.widget_ref
+        if wr is None:
+            return None
+        wr = wr()
+        if wr is None:
+            self.widget_ref = None
+            return None
+        return wr
+    widget = AliasProperty(_get_widget, None, bind=('widget_ref', ))
     
+=======
+>>>>>>> Stashed changes
+   
 class designer(FloatLayout):
     widget = ObjectProperty(None)
     status_bar = ObjectProperty(None)
@@ -202,12 +233,13 @@ class designer(FloatLayout):
     saved_nodes = []
     widget_list = {}
     exclude_list = ["VideoPlayer","VideoPlayerVolume","VideoPlayerPlayPause","VideoPlayerProgressBar"]
-    # get any widgets in kivy.uix directory
+    #Get any widgets in kivy.uix directory
     for cls in Factory.classes:
         if cls in exclude_list:
             continue
         module_string = str(Factory.classes[cls]['module'])
-        # if module is from current projects uix directory(user defined widgets) or 'kivy.uix' (kivy defined widgets)
+        # If module is from current projects uix directory(user defined widgets)
+        # or 'kivy.uix' (kivy defined widgets)
         if module_string.startswith(('uix', 'kivy.uix')):
             widget_list[cls]=str(Factory.classes[cls]['module'])
             Factory.register(cls,module=widget_list[cls])
@@ -222,8 +254,6 @@ class designer(FloatLayout):
             self.gscale = Scale(1.)
             self.grect = Rectangle(size=(0, 0))
             PopMatrix()
-    #What does push and pop matrix do exactly?
-    #Why is the response of self.grect a bit jerky?
         
     def build(self):
         '''Builds the widget_menu for the first time, and this function is never
@@ -266,6 +296,9 @@ class designer(FloatLayout):
         self.status_bar.text = ""
         
     def add_new_widget(self, instance, value,index=-1, *l):
+        '''This function is called whenever a new widget needs to be added
+        on to the canvas_area. It creates the widget and binds it with drag and 
+        show_properties functions'''
         if instance.is_selected:
             class_name = instance.text
             factory_caller = getattr(Factory,class_name)
@@ -273,8 +306,7 @@ class designer(FloatLayout):
             '''The above is a temp solution as widgets in the same spot 
             stick due to same on_touch_move calls. Will have to offer some 
             kind of layer options support (temp_pos_hint[0],temp_pos_hint[1])'''
-            new_widget = factory_caller(size_hint=(0.2,0.2))
-            #new_widget.pos_hint=(.3,.3)
+            new_widget = factory_caller(size_hint=(0.2,0.2),pos=self.canvas_area.pos)
             new_widget.bind(on_touch_move = self.drag)
             new_widget.bind(on_touch_down = self.show_properties)
             self.canvas_area.add_widget(new_widget)
@@ -299,9 +331,7 @@ class designer(FloatLayout):
         temp = list(treeview.iterate_all_nodes())
         for node in temp:
             treeview.remove_node(node)
-        #TODO
-        #Why does treeview loose all sense of parents?
-        #Why aren't nodes added to it? Do we have to return this treeview?
+        
         '''Adding a back button'''
         treeview.height = 30
         node = TreeViewLabel(text="< BACK TO ADD MORE WIDGETS",color=[1,1,0,1],bold=True)
@@ -314,36 +344,22 @@ class designer(FloatLayout):
         treeview.add_node(node)
         treeview.height = 25
         
+        wk_widget = weakref.ref(widget)
         keys = widget.properties().keys()
         keys.sort()
         node = None
         for key in keys:
             text = '%s' % key
-            node = TreeViewPropertyLabel()
-            #node = TreeViewProperty1(widget=self.widget,layout=self)
-            node.toggle.bind(state=self.save_edits)
-            node.lkey = text
-            node.rkey = str(getattr(widget,key))
-            #node.bind(is_selected = self.print_info)
+            wk_widget = weakref.ref(widget)
+            if isinstance(widget.property(key),BooleanProperty):
+                node = TreeViewPropertyBoolean(key=key,widget_ref=wk_widget)
+                node.toggle.bind(state=partial(self.save_properties,widget,key))
+            else:
+                node = TreeViewPropertyText(key=key,widget_ref=wk_widget)
+                node.textbox.bind(text=partial(
+                    self.save_properties,widget,key))
             treeview.add_node(node)
             Clock.schedule_interval(self.highlight_at,0)
-            
-    def save_edits(self,toggle,state):
-        '''This function is executed then the toggle button is down. It creates a TextInput 
-        accept changes, and calls a save_property function whenever TextInput.text is changed'''
-        if state=='down':
-            node = toggle.parent
-            lkey = node.lkey
-            rkey = node.rkey
-            treeview = self.treeview
-            treeview.remove_node(node)
-            node = TreeViewPropertyText()
-            node.lkey = lkey
-            node.rkey = rkey
-            node.toggle.state = 'down'
-            node.textbox.bind(text=self.print_status("text input change recognised"))
-            #^^This will be replaced by a function to save changed property
-            treeview.add_node(node)
     
     def delete_item(self,instance,*largs):
         if instance.is_selected:
@@ -375,10 +391,35 @@ class designer(FloatLayout):
         self.grotate.angle = angle
         self.gscale.scale = scale
                         
-    def print_info(self,instance,*largs):
-        if instance.is_selected:
-            print instance.lkey,instance.rkey
-            instance.is_selected = False
+    def save_properties(self,widget,key,instance,value):
+        prop = widget.property(key)
+        self.print_status(repr(prop))
+        
+        dtype = None
+        if isinstance(prop, AliasProperty):
+            if type(value) in (unicode, str):
+                dtype = 'string'
+            elif type(value) in (int, float):
+                dtype = 'numeric'
+        
+        if isinstance(prop,NumericProperty) or dtype=='numeric':
+            try:
+                setattr(widget,key,float(instance.text))
+            except:
+                self.print_status("[Numeric] This value isn't supported", 1)
+        if isinstance(prop,StringProperty) or dtype=='string':
+            try:
+                setattr(widget,key,instance.text)
+            except:
+                self.print_status("[String] This value isn't supported", 1)
+        if isinstance(prop,BooleanProperty):
+            try:
+                if instance.state=='down':
+                    setattr(widget,key,True)
+                if instance.state=='normal':
+                    setattr(widget,key,False)
+            except:
+                self.print_status("[Boolean] This value couldn't be saved")
             
     def build_menu(self,instance,*largs):
         '''This is a general purpose function that builds the main menu at anytime
@@ -396,21 +437,13 @@ class designer(FloatLayout):
                 treeview.remove_node(node)
             for node in self.saved_nodes:
                 treeview.add_node(node)
-            try:
-                pass
-                #self.treeview.toggle_node()
-            except:
-                pass
-                '''Do nothing. It was not called by a treeview'''    
-        
+            
 class DesignerApp(App):
     tool = ObjectProperty(None)
     def build(self):
         self.tool = designer()
         self.tool.build()
         return self.tool
-    
-#Factory.register("TreeViewProperty",TreeViewProperty)
 
 if __name__ in ('__android__', '__main__'):
     DesignerApp().run()    
