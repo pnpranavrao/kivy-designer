@@ -69,6 +69,7 @@ Builder.load_string('''#:kivy 1.0.9
                     size_hint_y: None
                     hide_root: True
                     height: self.minimum_height
+
 <TreeViewPropertyLabel>:
     toggle:toggle
     height:25
@@ -89,6 +90,7 @@ Builder.load_string('''#:kivy 1.0.9
         id:toggle
         border:0,0,0,0
         #on_state:.edit_properties()
+
 <TreeViewPropertyText>:
     textbox:textbox
     height:25
@@ -170,25 +172,6 @@ class TreeViewPropertyBoolean(BoxLayout, TreeViewNode):
     toggle = ObjectProperty(None)
     key = ObjectProperty(None, allownone=True)
     widget_ref = ObjectProperty(None, allownone=True)
-    key = ObjectProperty(None, allownone=True)
-
-    def _get_widget(self):
-        wr = self.widget_ref
-        if wr is None:
-            return None
-        wr = wr()
-        if wr is None:
-            self.widget_ref = None
-            return None
-        return wr
-    widget = AliasProperty(_get_widget, None, bind=('widget_ref', ))
-
-
-class TreeViewPropertyBoolean(BoxLayout, TreeViewNode):
-    lkey = ObjectProperty(None)
-    toggle = ObjectProperty(None)
-    key = ObjectProperty(None, allownone=True)
-    widget_ref = ObjectProperty(None, allownone=True)
 
     def _get_widget(self):
         wr = self.widget_ref
@@ -208,6 +191,12 @@ class designer(FloatLayout):
     canvas_area = ObjectProperty(None)
     treeview = ObjectProperty(None)
     win = ObjectProperty(None)
+    numeric_keys = ObjectProperty(None)
+    boolean_keys = ObjectProperty(None)
+    string_keys = ObjectProperty(None)
+    remaining_keys = ObjectProperty(None)
+    numeric_keys, boolean_keys, string_keys,\
+         remaining_keys = ([] for i in range(4))
     saved_nodes = ObjectProperty(None)
     saved_nodes = []
     widget_list = {}
@@ -314,6 +303,9 @@ in the status bar for 2 seconds"""
         temp = list(treeview.iterate_all_nodes())
         for node in temp:
             treeview.remove_node(node)
+        #Clearing out keys of old widget
+        self.numeric_keys, self.boolean_keys, self.string_keys,\
+         self.remaining_keys = ([] for i in range(4))
 
         '''Adding a back button'''
         treeview.height = 30
@@ -329,22 +321,72 @@ color=[1, 1, 0, 1], bold=True)
         treeview.height = 25
         wk_widget = weakref.ref(widget)
         keys = widget.properties().keys()
+        #Here we sort out the keys into different types
         keys.sort()
-        node = None
         for key in keys:
-            text = '%s' % key
-            wk_widget = weakref.ref(widget)
-            if isinstance(widget.property(key), BooleanProperty):
+            if isinstance(widget.property(key), NumericProperty):
+                self.numeric_keys.append(key)
+            elif isinstance(widget.property(key), StringProperty):
+                self.string_keys.append(key)
+            elif isinstance(widget.property(key), BooleanProperty):
+                self.boolean_keys.append(key)
+            elif isinstance(widget.property(key), AliasProperty):
+                value = getattr(widget, key)
+                if type(value) in (unicode, str):
+                    self.string_keys.append(key)
+                elif type(value) in (int, float):
+                    self.numeric_keys.append(key)
+            else:
+                self.remaining_keys.append(key)
+
+        wk_widget = weakref.ref(widget)
+
+        # Adding all the Boolean keys
+        if self.boolean_keys:
+            node = TreeViewLabel(text="Boolean properties", \
+    bold = True, color=[.25, .5, .6, 1])
+            treeview.add_node(node)
+            for key in self.boolean_keys:
                 node = TreeViewPropertyBoolean(key=key, widget_ref=wk_widget)
                 node.toggle.bind(state=partial(self.save_properties, \
-widget, key))
-            else:
-                node = TreeViewPropertyText(key=key, \
-                                            widget_ref=wk_widget)
-                node.textbox.bind(text=partial(self.save_properties,\
- widget, key))
+    widget, key))
+                treeview.add_node(node)
+
+        #Adding all the Numeric keys
+        if self.numeric_keys:
+            node = TreeViewLabel(text="Numeric properties", \
+    bold = True, color=[.25, .5, .6, 1])
             treeview.add_node(node)
-            Clock.schedule_interval(self.highlight_at, 0)
+            for key in self.numeric_keys:
+                node = TreeViewPropertyText(key=key, \
+                                                widget_ref=wk_widget)
+                node.textbox.bind(text=partial(self.save_properties,\
+     widget, key))
+                treeview.add_node(node)
+
+        #Adding all String keys
+        if self.string_keys:
+            node = TreeViewLabel(text="String properties", \
+    bold = True, color=[.25, .5, .6, 1])
+            treeview.add_node(node)
+            for key in self.string_keys:
+                node = TreeViewPropertyText(key=key, \
+                                                widget_ref=wk_widget)
+                node.textbox.bind(text=partial(self.save_properties,\
+     widget, key))
+                treeview.add_node(node)
+        if self.remaining_keys:
+            node = TreeViewLabel(text="Other properties", \
+    bold = True, color=[.25, .5, .6, 1])
+            treeview.add_node(node)
+            for key in self.remaining_keys:
+                node = TreeViewPropertyText(key=key, \
+                                                widget_ref=wk_widget)
+                node.textbox.bind(text=partial(self.save_properties,\
+     widget, key))
+                treeview.add_node(node)
+
+        Clock.schedule_interval(self.highlight_at, 0)
 
     def delete_item(self, instance, *largs):
         if instance.is_selected:
@@ -377,23 +419,17 @@ widget, key))
         prop = widget.property(key)
         self.print_status(repr(prop))
 
-        dtype = None
-        if isinstance(prop, AliasProperty):
-            if type(value) in (unicode, str):
-                dtype = 'string'
-            elif type(value) in (int, float):
-                dtype = 'numeric'
-        if isinstance(prop, NumericProperty) or dtype == 'numeric':
+        if key in self.numeric_keys:
             try:
                 setattr(widget, key, float(instance.text))
             except:
                 self.print_status("[Numeric] This value isn't supported", 1)
-        if isinstance(prop, StringProperty) or dtype=='string':
+        if key in self.string_keys:
             try:
                 setattr(widget, key, instance.text)
             except:
                 self.print_status("[String] This value isn't supported", 1)
-        if isinstance(prop, BooleanProperty):
+        if key in self.boolean_keys:
             try:
                 if instance.state == 'down':
                     setattr(widget, key, True)
