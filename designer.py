@@ -19,12 +19,14 @@ from kivy.graphics import Color, Rectangle, PushMatrix, PopMatrix, \
 from kivy.uix.treeview import TreeViewNode
 from kivy.uix.treeview import TreeView
 from kivy.uix.treeview import TreeViewLabel
+from menubar import MenuBar,MenuTreeView
 from kivy.factory import Factory
 from kivy.vector import Vector
 from kivy.clock import Clock
 import random
 import weakref
 from functools import partial
+from treeviewproperties import TreeViewPropertyBoolean,TreeViewPropertyText,TreeViewPropertyLabel
 
 Builder.load_string('''#:kivy 1.0.9
 <designer>:
@@ -32,13 +34,18 @@ Builder.load_string('''#:kivy 1.0.9
     canvas_area:canvas_area
     treeview:treeview
     win:win
+    leftbox:leftbox
     #widget_box:widget_box
     BoxLayout:
         id:win
         orientation:'horizontal'
         BoxLayout:
+            id:leftbox
             size_hint:.7,1
             orientation:'vertical'
+            #MenuBar
+#            MenuBar:
+#                id:menubar
             #Canvas box
             FloatLayout:
                 size_hint:1,.95
@@ -69,127 +76,14 @@ Builder.load_string('''#:kivy 1.0.9
                     size_hint_y: None
                     hide_root: True
                     height: self.minimum_height
-
-<TreeViewPropertyLabel>:
-    toggle:toggle
-    height:25
-    Label:
-        bold:True
-        text:root.lkey if root.lkey else ""
-        text_size: (self.width,None)
-        width:self.width
-        size_hint_x: None
-    Label:
-        shorten:True
-        color:0.39,1,.2,1
-        text:root.rkey if root.rkey else ""
-        text_size: (self.width,None)
-        width:self.width
-        size_hint_x: None
-    ToggleButton:
-        id:toggle
-        border:0,0,0,0
-        #on_state:.edit_properties()
-
-<TreeViewPropertyText>:
-    textbox:textbox
-    height:25
-    Label:
-        bold:True
-        text:root.key if root.widget else ""
-        text_size: (self.width,None)
-        width:self.width
-        size_hint_x: None
-    TextInput:
-        id:textbox
-        shorten:True
-        color:0.39,1,.2,1
-        text:repr(getattr(root.widget,root.key)) if root.widget else ''
-        text_size: (self.width,None)
-        width:self.width
-        size_hint_x: None
-
-<TreeViewPropertyBoolean>:
-    toggle:toggle
-    height:25
-    Label:
-        bold:True
-        text:root.key if root.widget else ""
-        text_size: (self.width,None)
-        width:self.width
-        size_hint_x: None
-    ToggleButton:
-        id:toggle
-        shorten:True
-        color:0.39,1,.2,1
-        state:self.state
-        text:"    True" if toggle.state=='down' else "   False"
-        #How do we set alignment in this text?
-        text_size: (self.width,None)
-        width:self.width
-        size_hint_x: None
             ''')
-
-
-class TreeViewPropertyLabel(BoxLayout, TreeViewNode):
-    '''This is a node structure that contains 2 labels and a
-toggle. A toggle state change, triggers a
-textinput box and accepts changes'''
-
-    layout = ObjectProperty(None)
-    widget = ObjectProperty(None)
-    lkey = ObjectProperty(None)
-    rkey = ObjectProperty(None)
-    toggle = ObjectProperty(None)
-
-"""Lesson learnt : In the .kv file, you can only bind
-properties to functions of the same class. So as
-TreeViewPropertyLabel/Text becomes a different class,
-passing the parameters between these two classes become
-very messy. Commenting the approach taken below as it
-was giving rise to segmentation faults."""
-
-
-class TreeViewPropertyText(BoxLayout, TreeViewNode):
-    textbox = ObjectProperty(None)
-    key = ObjectProperty(None, allownone=True)
-    widget_ref = ObjectProperty(None, allownone=True)
-
-    def _get_widget(self):
-        wr = self.widget_ref
-        if wr is None:
-            return None
-        wr = wr()
-        if wr is None:
-            self.widget_ref = None
-            return None
-        return wr
-    widget = AliasProperty(_get_widget, None, bind=('widget_ref', ))
-
-
-class TreeViewPropertyBoolean(BoxLayout, TreeViewNode):
-    lkey = ObjectProperty(None)
-    toggle = ObjectProperty(None)
-    key = ObjectProperty(None, allownone=True)
-    widget_ref = ObjectProperty(None, allownone=True)
-
-    def _get_widget(self):
-        wr = self.widget_ref
-        if wr is None:
-            return None
-        wr = wr()
-        if wr is None:
-            self.widget_ref = None
-            return None
-        return wr
-    widget = AliasProperty(_get_widget, None, bind=('widget_ref', ))
-
 
 class designer(FloatLayout):
     widget = ObjectProperty(None)
     status_bar = ObjectProperty(None)
     canvas_area = ObjectProperty(None)
     treeview = ObjectProperty(None)
+    leftbox = ObjectProperty(None)
     win = ObjectProperty(None)
     numeric_keys = ObjectProperty(None)
     boolean_keys = ObjectProperty(None)
@@ -224,6 +118,7 @@ class designer(FloatLayout):
             self.gscale = Scale(1.)
             self.grect = Rectangle(size=(0, 0))
             PopMatrix()
+                
 
     def build(self):
         '''Builds the widget_menu for the first time, and this
@@ -336,6 +231,8 @@ color=[1, 1, 0, 1], bold=True)
                     self.string_keys.append(key)
                 elif type(value) in (int, float):
                     self.numeric_keys.append(key)
+                else:
+                    self.remaining_keys.append(key)
             else:
                 self.remaining_keys.append(key)
 
@@ -375,6 +272,8 @@ color=[1, 1, 0, 1], bold=True)
                 node.textbox.bind(text=partial(self.save_properties,\
      widget, key))
                 treeview.add_node(node)
+        
+        #Adding the remaining keys
         if self.remaining_keys:
             node = TreeViewLabel(text="Other properties", \
     bold = True, color=[.25, .5, .6, 1])
@@ -385,7 +284,8 @@ color=[1, 1, 0, 1], bold=True)
                 node.textbox.bind(text=partial(self.save_properties,\
      widget, key))
                 treeview.add_node(node)
-
+        
+        #Setting up highlighting of the selected widget
         Clock.schedule_interval(self.highlight_at, 0)
 
     def delete_item(self, instance, *largs):
@@ -455,6 +355,8 @@ draw the main widget menu'''
                 treeview.remove_node(node)
             for node in self.saved_nodes:
                 treeview.add_node(node)
+                
+    #Factory.register("MenuBar", MenuBar)
 
 
 class DesignerApp(App):
