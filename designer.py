@@ -110,6 +110,17 @@ class designer(FloatLayout):
 
     def __init__(self, **kwargs):
         super(designer, self).__init__(**kwargs)
+        
+        '''TEMPORARY : Creating a temporary MenuBar object for testing'''
+#        temptree = MenuTreeView(size=(100,100))
+#        temp = MenuBar(pos = (0,500),size_hint = (0.7,0.05))
+#        #Why does pos_hint fail above? Isn't the Designer class's floatlayout not accesible?
+#        #How come size_hint is allowed then?
+#        #How do I the pos to the top of the canvas area if I can't access pos_hint?
+#        temp.add_menu_item("hello",temptree)
+#        self.add_widget(temp)
+        ''' TESTING CLOSE '''
+       
         with self.canvas.after:
             self.gcolor = Color(1, 1, 0, .25)
             PushMatrix()
@@ -126,6 +137,7 @@ function is never called again. While building all the widget
 nodes are saved in a list called  self.saved_nodes.
 In future drawing of the widget menu, this list is used'''
         keys=[]
+        layout_keys = []
         for cls in self.widget_list:
             if cls == "Camera":
                 '''This is because there seems to be some bug in Gstreamer
@@ -135,6 +147,7 @@ In future drawing of the widget menu, this list is used'''
                 factory_caller = getattr(Factory, str(cls))
                 new_widget = factory_caller()
                 if isinstance(new_widget, Layout):
+                    layout_keys.append(cls)
                     continue
                 if isinstance(new_widget, Widget):
                     keys.append(cls)
@@ -142,6 +155,13 @@ In future drawing of the widget menu, this list is used'''
                 self.print_status(err.message)
         keys.append('Camera')
         keys.sort()
+        layout_keys.sort()
+        
+        '''Adding all the widgets to the menu'''
+        node = TreeViewLabel(text= " Widgets", bold = True, \
+                             color=[.25, .5, .6, 1])
+        self.treeview.add_node(node)
+        self.saved_nodes.append(node)
         node = None
         for key in keys:
             text = '%s' % key
@@ -149,6 +169,19 @@ In future drawing of the widget menu, this list is used'''
             node.bind(is_selected = self.add_new_widget)
             self.treeview.add_node(node)
             self.saved_nodes.append(node)
+        
+        '''Adding all the Layouts to the menu'''
+        node = TreeViewLabel(text= "Layouts ", bold = True, \
+                             color=[.25, .5, .6, 1])
+        self.treeview.add_node(node)
+        self.saved_nodes.append(node)
+        for key in layout_keys:
+            text = '%s' % key
+            node = TreeViewLabel(text = text)
+            node.bind(is_selected = self.add_new_widget)
+            self.treeview.add_node(node)
+            self.saved_nodes.append(node)
+        return self
 
     def print_status(self, msg, t=3):
         """Provide a string as an argument to print it out
@@ -169,19 +202,34 @@ in the status bar for 2 seconds"""
         if instance.is_selected:
             class_name = instance.text
             factory_caller = getattr(Factory, class_name)
-            temp_pos_hint = (random.random(), random.random())
-            '''The above is a temp solution as widgets in the same spot
-            stick due to same on_touch_move calls. Will have to offer some
-            kind of layer options support (temp_pos_hint[0],temp_pos_hint[1])'''
             new_widget = factory_caller(size_hint=(0.2, 0.2),\
  pos=self.canvas_area.pos)
+            '''If the new_widget is a Layout, we need to handle it a bit differently'''
+            if isinstance(new_widget, Layout):
+                with new_widget.canvas:
+                    Color(0.5, 0.5, 0.5, .5)
+                    Rectangle(pos = new_widget.pos, size = new_widget.size)
+                new_widget.bind(pos = self.redraw_canvas,size = self.redraw_canvas)
             new_widget.bind(on_touch_move = self.drag)
             new_widget.bind(on_touch_down = self.show_properties)
             self.canvas_area.add_widget(new_widget)
             instance.is_selected = False
-
+    
+    def redraw_canvas(self,widget,*kwargs):
+        ''' This function redraws the canvas of 'Layout' widgets whenever they are
+        moved or resized so that it is easy to recognize them in the canvas_area.
+        As the 'Layout' widgets themselves dont have a representation.'''
+        widget.canvas.clear()
+        with widget.canvas:
+             Color(0.5, 0.5, 0.5, .5)
+             Rectangle(pos = widget.pos, size = widget.size)
+    
     def drag(self, widget, touch):
-        if widget.collide_point(touch.x, touch.y):
+        ''' This function moves the widget in the canvas_area when it is 
+        dragged (on_touch_move of the widget is called)'''
+        if self.widget == widget:
+            '''The above check is done so that only the selected widget
+            which is stored in "self.widget" is moved on drag.'''
             widget.center = touch.pos
 
     def show_properties(self, widget, touch):
@@ -208,6 +256,16 @@ in the status bar for 2 seconds"""
 color=[1, 1, 0, 1], bold=True)
         node.bind(is_selected=self.build_menu)
         treeview.add_node(node)
+        
+        '''If the widget is a layout, we need to provide
+        an option to add more widgets to this layout'''
+        if isinstance(widget,Layout):
+            treeview.height = 30
+            node = TreeViewLabel(text="Add widgets to this Layout", \
+    color=[.4, 1, 0, 1])
+            node.bind(is_selected=self.layout_build_menu)
+            treeview.add_node(node)
+            
         '''Adding a delete button'''
         node = TreeViewLabel(text= "Delete this widget",\
  color=[1, 0, 0, 1])
@@ -288,6 +346,12 @@ color=[1, 1, 0, 1], bold=True)
         #Setting up highlighting of the selected widget
         Clock.schedule_interval(self.highlight_at, 0)
 
+    def layout_build_menu(self):
+        '''This function, clears the current treeview, displays the 
+        'add widgets menu' + a back button, and when added, adds it to 
+        this layout which is selected'''
+        pass
+    
     def delete_item(self, instance, *largs):
         if instance.is_selected:
             canvas_area = self.canvas_area
