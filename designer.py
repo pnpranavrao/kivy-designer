@@ -212,7 +212,16 @@ in the status bar for 2 seconds"""
                 new_widget.bind(pos = self.redraw_canvas,size = self.redraw_canvas)
             new_widget.bind(on_touch_move = self.drag)
             new_widget.bind(on_touch_down = self.show_properties)
-            self.canvas_area.add_widget(new_widget)
+            ''' If a layout element is selected and then a widget is added 
+            to it, then it should be added to the selected layout
+            instead of canvas_area '''
+            if self.widget:
+                if isinstance(self.widget,Layout):
+                    self.widget.add_widget(new_widget)
+                else:
+                    self.canvas_area.add_widget(new_widget)
+            else:
+                self.canvas_area.add_widget(new_widget)
             instance.is_selected = False
     
     def redraw_canvas(self,widget,*kwargs):
@@ -243,10 +252,10 @@ in the status bar for 2 seconds"""
         self.print_status("Focussed on %s"%(str(widget)), t=6)
         self.widget = widget
         treeview = self.treeview
+        #Clearing out existing treeview
         temp = list(treeview.iterate_all_nodes())
         for node in temp:
             treeview.remove_node(node)
-        #Clearing out keys of old widget
         self.numeric_keys, self.boolean_keys, self.string_keys,\
          self.remaining_keys = ([] for i in range(4))
 
@@ -263,7 +272,7 @@ color=[1, 1, 0, 1], bold=True)
             treeview.height = 30
             node = TreeViewLabel(text="Add widgets to this Layout", \
     color=[.4, 1, 0, 1])
-            node.bind(is_selected=self.layout_build_menu)
+            node.bind(is_selected=self.build_menu)
             treeview.add_node(node)
             
         '''Adding a delete button'''
@@ -346,7 +355,7 @@ color=[1, 1, 0, 1], bold=True)
         #Setting up highlighting of the selected widget
         Clock.schedule_interval(self.highlight_at, 0)
 
-    def layout_build_menu(self):
+    def layout_build_menu(self,*kwargs):
         '''This function, clears the current treeview, displays the 
         'add widgets menu' + a back button, and when added, adds it to 
         this layout which is selected'''
@@ -354,8 +363,9 @@ color=[1, 1, 0, 1], bold=True)
     
     def delete_item(self, instance, *largs):
         if instance.is_selected:
-            canvas_area = self.canvas_area
-            canvas_area.remove_widget(self.widget)
+            #canvas_area = self.canvas_area
+            parent = self.widget.parent
+            parent.remove_widget(self.widget)
             self.build_menu(True)
             #We have to stop highlighing
             Clock.unschedule(self.highlight_at)
@@ -404,9 +414,9 @@ color=[1, 1, 0, 1], bold=True)
 
     def build_menu(self, instance, *largs):
         '''This is a general purpose function that builds the
-main menu at anytime when it called with a True value.
-It uses the list self.saved_nodes to
-draw the main widget menu'''
+            main menu at anytime when it called with a True value.
+            It uses the list self.saved_nodes to
+            draw the main widget menu'''
         check = False
         try:
             check = instance.is_selected
@@ -414,13 +424,16 @@ draw the main widget menu'''
             pass
         if check or instance:
             treeview = self.treeview
+            #Copy all current nodes in a temp list
             temp = list(treeview.iterate_all_nodes())
+            #Delete them.
             for node in temp:
                 treeview.remove_node(node)
             for node in self.saved_nodes:
                 treeview.add_node(node)
                 
     #Factory.register("MenuBar", MenuBar)
+    
 
 
 class DesignerApp(App):
