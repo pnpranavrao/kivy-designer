@@ -24,6 +24,7 @@ from menubar import MenuBar,MenuTreeView
 from kivy.factory import Factory
 from kivy.vector import Vector
 from kivy.clock import Clock
+from kivy.core.window import Window
 import random
 import weakref
 from functools import partial
@@ -80,7 +81,7 @@ Builder.load_string('''#:kivy 1.0.9
             ''')
 
 class designer(FloatLayout):
-    widget = ObjectProperty(None)
+    widget = ObjectProperty(None, allownone=True)
     status_bar = ObjectProperty(None)
     canvas_area = ObjectProperty(None)
     treeview = ObjectProperty(None)
@@ -111,6 +112,8 @@ class designer(FloatLayout):
 
     def __init__(self, **kwargs):
         super(designer, self).__init__(**kwargs)
+        #This following variable updates to True when ctrl is pressed
+        self.ctrl_pressed = False
         
         '''TEMPORARY : Creating a temporary MenuBar object for testing'''
 #        temptree = MenuTreeView(size=(100,100))
@@ -121,7 +124,10 @@ class designer(FloatLayout):
 #        temp.add_menu_item("hello",temptree)
 #        self.add_widget(temp)
         ''' TESTING CLOSE '''
-       
+        #Initialize the keyboard and set up handlers for key press and release
+        self.canvas_area._keyboard = Window.request_keyboard(self._keyboard_closed,self)
+        self.canvas_area._keyboard.bind(on_key_down=self._on_keyboard_down)
+        self.canvas_area._keyboard.bind(on_key_up = self._on_keyboard_up)
         with self.canvas.after:
             self.gcolor = Color(1, 1, 0, .25)
             PushMatrix()
@@ -130,13 +136,35 @@ class designer(FloatLayout):
             self.gscale = Scale(1.)
             self.grect = Rectangle(size=(0, 0))
             PopMatrix()
-                
-
+            
+    def _keyboard_closed(self):
+        '''Default keyboard closer necessary for initializing a keyboard'''
+        self.canvas_area._keyboard.unbind(on_key_down=self._on_keyboard_down)
+        print "Keyboard being released"
+        self.canvas_area._keyboard = None
+    
+    def _on_keyboard_down(self,keyboard,keycode,*largs):
+        '''If 'ctrl' button is pressed, it sets the corresponding
+        boolean True'''
+        modifiers =  keycode[1]
+        print modifiers
+        if modifiers == 'ctrl':
+            self.ctrl_pressed = True
+        print "in key down " + str(self.ctrl_pressed)
+    
+    def _on_keyboard_up(self,keyboard,keycode,*largs):
+        ''' If 'ctrl' key is released, it makes the corresponding boolean
+        go False'''
+        modifiers = keycode[1]
+        if modifiers == 'ctrl':
+            self.ctrl_pressed = False
+        print "In key up" + str(self.ctrl_pressed)
+        
     def build(self):
         '''Builds the widget_menu for the first time, and this
-function is never called again. While building all the widget
-nodes are saved in a list called  self.saved_nodes.
-In future drawing of the widget menu, this list is used'''
+        function is never called again. While building all the widget
+        nodes are saved in a list called  self.saved_nodes.
+        In future drawing of the widget menu, this list is used'''
         keys=[]
         layout_keys = []
         for cls in self.widget_list:
@@ -186,7 +214,7 @@ In future drawing of the widget menu, this list is used'''
 
     def print_status(self, msg, t=3):
         """Provide a string as an argument to print it out
-in the status bar for 2 seconds"""
+        in the status bar for 2 seconds"""
         label = self.status_bar
         label.text = "[b]Status Bar : [/b] " + msg
         Clock.unschedule(self.clear_status)
@@ -250,8 +278,19 @@ in the status bar for 2 seconds"""
         #Cleaning up old treeview selections
         node = self.treeview.selected_node
         self.treeview.toggle_node(node)
+        #If ctrl is pressed and widget is selected we need to
+        #select widget's parent 
+        if self.ctrl_pressed:
+            #We don't want to select parents of 1 degree widgets
+            if widget.parent is not self.canvas_area:
+                self.widget = widget.parent
+            else:
+                self.widget = widget
+        else:
+            self.widget = widget
+        #shortening self.widget to widget as it gets used repeatedly
+        widget = self.widget
         self.print_status("Focussed on %s"%(str(widget)), t=6)
-        self.widget = widget
         treeview = self.treeview
         #Clearing out existing treeview
         temp = list(treeview.iterate_all_nodes())
@@ -265,6 +304,8 @@ in the status bar for 2 seconds"""
         node = TreeViewLabel(text="< BACK TO ADD MORE WIDGETS", \
 color=[1, 1, 0, 1], bold=True)
         node.bind(is_selected=self.build_menu)
+        node.bind(is_selected = self.clear_selection)
+        #Is this the right way to call 2 functions from a property change?
         treeview.add_node(node)
         
         '''If the widget is a layout, we need to provide
@@ -356,21 +397,21 @@ color=[1, 1, 0, 1], bold=True)
         #Setting up highlighting of the selected widget
         Clock.schedule_interval(self.highlight_at, 0)
 
-    def layout_build_menu(self,*kwargs):
-        '''This function, clears the current treeview, displays the 
-        'add widgets menu' + a back button, and when added, adds it to 
-        this layout which is selected'''
-        pass
-    
     def delete_item(self, instance, *largs):
         if instance.is_selected:
             #canvas_area = self.canvas_area
             parent = self.widget.parent
             parent.remove_widget(self.widget)
             self.build_menu(True)
-            #We have to stop highlighing
-            Clock.unschedule(self.highlight_at)
-            self.grect.size = (0, 0)
+            self.clear_selection(True)
+            
+    def clear_selection(self,*kwargs):
+        '''This function takes away the highlight 
+        and also nullifies the self.widget'''
+        self.widget = None
+        #We have to stop highlighing
+        Clock.unschedule(self.highlight_at)
+        self.grect.size = (0, 0)
 
     def highlight_at(self, *largs):
         gr = self.grect
@@ -432,7 +473,7 @@ color=[1, 1, 0, 1], bold=True)
                 treeview.remove_node(node)
             for node in self.saved_nodes:
                 treeview.add_node(node)
-                
+        
     #Factory.register("MenuBar", MenuBar)
     
 
