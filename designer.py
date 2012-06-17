@@ -115,15 +115,8 @@ class designer(FloatLayout):
         #This following variable updates to True when ctrl is pressed
         self.ctrl_pressed = False
         
-        '''TEMPORARY : Creating a temporary MenuBar object for testing'''
-#        temptree = MenuTreeView(size=(100,100))
-#        temp = MenuBar(pos = (0,500),size_hint = (0.7,0.05))
-#        #Why does pos_hint fail above? Isn't the Designer class's floatlayout not accesible?
-#        #How come size_hint is allowed then?
-#        #How do I the pos to the top of the canvas area if I can't access pos_hint?
-#        temp.add_menu_item("hello",temptree)
-#        self.add_widget(temp)
-        ''' TESTING CLOSE '''
+        temp_menu = MenuBar(pos_hint = {'x':0,'top':1},size_hint = (.70,None),height = 15)
+        self.add_widget(temp_menu)
         #Initialize the keyboard and set up handlers for key press and release
         self.canvas_area._keyboard = Window.request_keyboard(self._keyboard_closed,self)
         self.canvas_area._keyboard.bind(on_key_down=self._on_keyboard_down)
