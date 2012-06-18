@@ -80,7 +80,8 @@ class MenuBar(BoxLayout):
         
     def add_menu_item(self,item_name,treeview_object):
         #Create a button with the name 'item_name'
-        item_button = Toggle1(text = item_name, pos = (0,self.top), height = self.height, size_hint_y = None)
+        item_button = Toggle1(text = item_name, pos = (0,self.top), \
+                    group = "menu"+str(self), height = self.height, size_hint_y = None)
         # Create a ScrollView and add its treeview. This will
         # be our scrollable menu
         parent_scrollview = ScrollView()
@@ -93,7 +94,7 @@ class MenuBar(BoxLayout):
                                        single_menu_item, parent_scrollview))
         #On click should give a function that adds our scrollview to the single_menu_list
         single_menu_item.add_widget(item_button)
-        single_menu_item.bind(height = self.reset_pos)
+        single_menu_item.add_widget(Widget())
         self.add_widget(single_menu_item)
                  
     def __add_scrollview(self,*kwargs):
@@ -102,23 +103,41 @@ class MenuBar(BoxLayout):
                     instance, state = kwargs
         if state=='down':
             menu_list.add_widget(parent_scrollview)
+            self.space_siblings(menu_list.parent, menu_list, True)
         else:
             children_list = list(menu_list.children)
             menu_list.clear_widgets()
-            menu_list.add_widget(children_list[1])
-        
+            self.space_siblings(menu_list.parent, menu_list, False)
+            menu_list.add_widget(children_list[len(children_list)-1])
+            
+            
     def set_menu_height(self,*kwargs):
         ''' This is called whenever a new child is added to 
             single_menu_item. It calculates the height that the all the 
             children now take, and sets single_menu_item's parent, i.e MenuBar's
             height to that value'''
         menu_list, menu_children = kwargs
-        height = 0
-        for i in menu_children:
-            height = height + i.height
-        menu_list.parent.height = height
-        
-    def reset_pos(self,*kwargs):
-        '''This is called when the single_menu_item's height is changed.
-        We should set ToggleBox's position explicitly'''
-        pass
+        menu_parent = menu_list.parent
+        max_height = 0
+        for menu in menu_parent.children:
+            height = 0
+            for child in menu.children:
+                height = height + child.height
+            if height > max_height:
+                print "max hieght in" + repr(menu)
+                max_height = height
+            menu_list.parent.height = max_height
+    
+    def space_siblings(self, obj, skip, add):
+        for child in obj.children:
+            #We shouldn't add the dummy widget to the opened menu
+            if child is not skip:
+                if add:
+                    try:
+                        child.add_widget(child.spacing_widg)
+                    except AttributeError:
+                        child.spacing_widg = Widget()
+                        child.add_widget(child.spacing_widg)
+                else:
+                   child.remove_widget(child.spacing_widg)
+   
