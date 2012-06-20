@@ -4,6 +4,7 @@ kivy.require('1.0.9')
 
 from kivy.app import App
 from kivy.uix.widget import Widget
+from kivy.uix.button import Button
 from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.layout import Layout
 from kivy.uix.floatlayout import FloatLayout
@@ -29,9 +30,10 @@ import random
 import weakref
 from functools import partial
 from treeviewproperties import TreeViewPropertyBoolean,TreeViewPropertyText,TreeViewPropertyLabel
+from state import Saver
 
 Builder.load_string('''#:kivy 1.0.9
-<designer>:
+<Designer>:
     status_bar:status_bar
     canvas_area:canvas_area
     treeview:treeview
@@ -80,7 +82,7 @@ Builder.load_string('''#:kivy 1.0.9
                     height: self.minimum_height
             ''')
 
-class designer(FloatLayout):
+class Designer(FloatLayout):
     widget = ObjectProperty(None, allownone=True)
     status_bar = ObjectProperty(None)
     canvas_area = ObjectProperty(None)
@@ -111,11 +113,12 @@ class designer(FloatLayout):
             Factory.register(cls, module=widget_list[cls])
 
     def __init__(self, **kwargs):
-        super(designer, self).__init__(**kwargs)
+        super(Designer, self).__init__(**kwargs)
         #This following variable updates to True when ctrl is pressed
         self.ctrl_pressed = False
         
-        temp_menu = MenuBar(pos_hint = {'x':0,'top':1},size_hint = (.70,None),height = 15)
+        temp_menu = MenuBar(pos_hint = {'x':0,'top':1}, \
+                            canvas_area = self.canvas_area, size_hint = (.70,None),height = 15)
         self.add_widget(temp_menu)
         #Initialize the keyboard and set up handlers for key press and release
         self.canvas_area._keyboard = Window.request_keyboard(self._keyboard_closed,self)
@@ -129,22 +132,19 @@ class designer(FloatLayout):
             self.gscale = Scale(1.)
             self.grect = Rectangle(size=(0, 0))
             PopMatrix()
-            
+        
     def _keyboard_closed(self):
         '''Default keyboard closer necessary for initializing a keyboard'''
         self.canvas_area._keyboard.unbind(on_key_down=self._on_keyboard_down)
-        print "Keyboard being released"
         self.canvas_area._keyboard = None
     
     def _on_keyboard_down(self,keyboard,keycode,*largs):
         '''If 'ctrl' button is pressed, it sets the corresponding
         boolean True'''
         modifiers =  keycode[1]
-        print modifiers
         if modifiers == 'ctrl':
             self.ctrl_pressed = True
-        print "in key down " + str(self.ctrl_pressed)
-    
+        
     def _on_keyboard_up(self,keyboard,keycode,*largs):
         ''' If 'ctrl' key is released, it makes the corresponding boolean
         go False'''
@@ -343,12 +343,12 @@ color=[1, 1, 0, 1], bold=True)
         # Adding all the Boolean keys
         if self.boolean_keys:
             node = TreeViewLabel(text="Boolean properties", \
-    bold = True, color=[.25, .5, .6, 1])
+                                 bold = True, color=[.25, .5, .6, 1])
             treeview.add_node(node)
             for key in self.boolean_keys:
                 node = TreeViewPropertyBoolean(key=key, widget_ref=wk_widget)
                 node.toggle.bind(state=partial(self.save_properties, \
-    widget, key))
+                                               widget, key))
                 treeview.add_node(node)
 
         #Adding all the Numeric keys
@@ -476,7 +476,7 @@ class DesignerApp(App):
     tool = ObjectProperty(None)
 
     def build(self):
-        self.tool = designer()
+        self.tool = Designer()
         self.tool.build()
         return self.tool
 
