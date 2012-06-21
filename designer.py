@@ -31,10 +31,10 @@ import weakref
 from functools import partial
 from treeviewproperties import TreeViewPropertyBoolean,TreeViewPropertyText,TreeViewPropertyLabel
 from state import Saver
+from statusbar import StatusBar
 
 Builder.load_string('''#:kivy 1.0.9
 <Designer>:
-    status_bar:status_bar
     canvas_area:canvas_area
     treeview:treeview
     win:win
@@ -65,12 +65,6 @@ Builder.load_string('''#:kivy 1.0.9
                     text:'Canvas Area'
                     text_size:(300,300)
                     pos:150,200
-            #Statusbar
-            Label:
-                size_hint:1,.05
-                markup:True
-                id:status_bar
-                text:self.text if self.text else ""
         #widgets box
         BoxLayout:
             size_hint:.3,1
@@ -117,13 +111,14 @@ class Designer(FloatLayout):
         #This following variable updates to True when ctrl is pressed
         self.ctrl_pressed = False
         
-        temp_menu = MenuBar(pos_hint = {'x':0,'top':1}, \
+        main_menu = MenuBar(pos_hint = {'x':0,'top':1}, \
                             canvas_area = self.canvas_area, size_hint = (.70,None),height = 15)
-        self.add_widget(temp_menu)
+        self.add_widget(main_menu)
         #Initialize the keyboard and set up handlers for key press and release
         self.canvas_area._keyboard = Window.request_keyboard(self._keyboard_closed,self)
         self.canvas_area._keyboard.bind(on_key_down=self._on_keyboard_down)
         self.canvas_area._keyboard.bind(on_key_up = self._on_keyboard_up)
+        # Setup canvas for highlighting
         with self.canvas.after:
             self.gcolor = Color(1, 1, 0, .25)
             PushMatrix()
@@ -132,6 +127,9 @@ class Designer(FloatLayout):
             self.gscale = Scale(1.)
             self.grect = Rectangle(size=(0, 0))
             PopMatrix()
+        # Instantiate Statusbar
+        self.status_bar = StatusBar(size_hint = (1,.05))
+        self.leftbox.add_widget(self.status_bar)
         
     def _keyboard_closed(self):
         '''Default keyboard closer necessary for initializing a keyboard'''
@@ -151,7 +149,6 @@ class Designer(FloatLayout):
         modifiers = keycode[1]
         if modifiers == 'ctrl':
             self.ctrl_pressed = False
-        print "In key up" + str(self.ctrl_pressed)
         
     def build(self):
         '''Builds the widget_menu for the first time, and this
@@ -174,7 +171,7 @@ class Designer(FloatLayout):
                 if isinstance(new_widget, Widget):
                     keys.append(cls)
             except Exception as err:
-                self.print_status(err.message)
+                self.status_bar.print_status(err.message)
         keys.append('Camera')
         keys.sort()
         layout_keys.sort()
@@ -204,18 +201,6 @@ class Designer(FloatLayout):
             self.treeview.add_node(node)
             self.saved_nodes.append(node)
         return self
-
-    def print_status(self, msg, t=3):
-        """Provide a string as an argument to print it out
-        in the status bar for 2 seconds"""
-        label = self.status_bar
-        label.text = "[b]Status Bar : [/b] " + msg
-        Clock.unschedule(self.clear_status)
-        Clock.schedule_once(self.clear_status, t)
-
-    def clear_status(self, *largs):
-        """Small function to clear the status bar after time seconds"""
-        self.status_bar.text = ""
 
     def add_new_widget(self, instance, value, index=-1, *l):
         '''This function is called whenever a new widget needs to be added
@@ -263,6 +248,10 @@ class Designer(FloatLayout):
             which is stored in "self.widget" is moved on drag.'''
             widget.center = touch.pos
 
+    #def on_touch_down(self,touch):
+        #TODo : There's a bug when you try to select a layout after you
+        # add a widget. 
+        
     def show_properties(self, widget, touch):
         '''This function is called whenever an added widget is selected
         in the canvas area. It draws the widget properties bar
@@ -283,7 +272,7 @@ class Designer(FloatLayout):
             self.widget = widget
         #shortening self.widget to widget as it gets used repeatedly
         widget = self.widget
-        self.print_status("Focussed on %s"%(str(widget)), t=6)
+        self.status_bar.print_status("Focussed on %s"%(str(widget)), t=6)
         treeview = self.treeview
         #Clearing out existing treeview
         temp = list(treeview.iterate_all_nodes())
@@ -426,18 +415,18 @@ color=[1, 1, 0, 1], bold=True)
 
     def save_properties(self, widget, key, instance, value):
         prop = widget.property(key)
-        self.print_status(repr(prop))
+        self.status_bar.print_status(repr(prop))
 
         if key in self.numeric_keys:
             try:
                 setattr(widget, key, float(instance.text))
             except:
-                self.print_status("[Numeric] This value isn't supported", 1)
+                self.status_bar.print_status("[Numeric] This value isn't supported", 1)
         if key in self.string_keys:
             try:
                 setattr(widget, key, instance.text)
             except:
-                self.print_status("[String] This value isn't supported", 1)
+                self.status_bar.print_status("[String] This value isn't supported", 1)
         if key in self.boolean_keys:
             try:
                 if instance.state == 'down':
@@ -445,7 +434,7 @@ color=[1, 1, 0, 1], bold=True)
                 if instance.state == 'normal':
                     setattr(widget, key, False)
             except:
-                self.print_status("[Boolean] This value couldn't be saved")
+                self.status_bar.print_status("[Boolean] This value couldn't be saved")
 
     def build_menu(self, instance, *largs):
         '''This is a general purpose function that builds the

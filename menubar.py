@@ -43,8 +43,9 @@ class TreeViewLabel1(TreeViewLabel):
     def __init__(self,**kwargs):
         super(TreeViewLabel1,self).__init__(**kwargs)
         self.odd_color = (0, 0, 0, 0.7)
-        self.even_color = (0,0,0,1)
+        self.even_color = (0, 0, 0, 1)
         self.bold = True
+        self.color_selected = (0.5, .7, 1, 1)
 
 class MenuBar(BoxLayout):
     '''The structure of the menubar is as follows:
@@ -54,10 +55,25 @@ class MenuBar(BoxLayout):
             *ScrollView
                 *MenuTreeView
     '''
+    def on_touch_down(self, touch):
+        '''This is necessary to close the menus if the mouse is 
+        clicked anywhere else other than the menu when its open'''
+        if self.menu_down:
+            if not self.collide_point(*touch.pos):
+                menus = self.children
+                for menu in menus:
+                    for child in menu.children:
+                        if isinstance(child, ToggleButton):
+                            child.state = 'normal'
+            else:
+                super(MenuBar, self).on_touch_down(touch)
+            return True
+        super(MenuBar, self).on_touch_down(touch)
+        
     def __init__(self,**kwargs):
         super(MenuBar,self).__init__(**kwargs)
         self.canvas_area = kwargs.get('canvas_area')
-        print self.canvas_area
+        self.menu_down = False
         #File Menu
         treeview_file = MenuTreeView()
         items = ["Open...", "Save", "Save As..", "Sync git repo", "Quit.."]
@@ -114,6 +130,7 @@ class MenuBar(BoxLayout):
             self.space_siblings(menu_list.parent, menu_list, True)
             menu_list.parent.height = min(last_child.height +\
             parent_scrollview.children[0].height, menu_list.parent.parent.height)
+            self.menu_down = True
         else:
             children_list = list(menu_list.children)
             las_child = children_list[len(children_list)-1]
@@ -121,6 +138,7 @@ class MenuBar(BoxLayout):
             self.space_siblings(menu_list.parent, menu_list, False)
             menu_list.add_widget(last_child)
             menu_list.parent.height = last_child.height
+            self.menu_down = False
 
     def space_siblings(self, obj, skip, add):
         for child in obj.children:
