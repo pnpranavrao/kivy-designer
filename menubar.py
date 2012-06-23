@@ -2,12 +2,13 @@ import kivy
 kivy.require('1.0.9')
 
 from kivy.uix.widget import Widget
+from kivy.uix.label import Label
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.button import Button
 from kivy.uix.scrollview import ScrollView
-from kivy.uix.treeview import TreeView, TreeViewLabel
+from kivy.uix.treeview import TreeView, TreeViewLabel, TreeViewNode
 from kivy.lang import Builder
 from kivy.properties import ObjectProperty, BooleanProperty, ListProperty, \
         NumericProperty, StringProperty, OptionProperty, \
@@ -33,15 +34,37 @@ Builder.load_string('''#:kivy 1.0.9
 ''')
 
 class MenuTreeView(TreeView):
-    pass
+    
+    def __init__(self, **kwargs):
+        super(MenuTreeView, self).__init__(**kwargs)
+        self.bind(selected_node = self.on_node_selected)
+        # Fix-this : Above not working.
+        
+    def on_node_selected(self, treeview, *kwargs):
+        ''' Function to close the menu as soon as a selection is done'''    
+        if treeview.selected_node:
+            #Deselect node first
+            #treeview._selected_node = None
+            # Fix-this :  There appears to toggle a selected node. Investigate
+            single_menu = self.parent.parent.parent
+            # Need to find a better way to get the parent - single_menu.
+            # The problem with the above method is that you can't use this class
+            # for nested menus i.e MenuTreeView inside MenuTreeView
+            menus = single_menu.children
+            for menu in menus:
+                for child in menu.children:
+                    if isinstance(child, ToggleButton):
+                        child.state = 'normal'
+
 
 class Toggle1(ToggleButton):
     pass
 
-class TreeViewLabel1(TreeViewLabel):
+class TreeViewLabel1(Label, TreeViewNode):
     '''Custom TreeViewLabel style 1 : Used for menu items'''
     def __init__(self,**kwargs):
         super(TreeViewLabel1,self).__init__(**kwargs)
+        self.height = 20
         self.odd_color = (0, 0, 0, 0.7)
         self.even_color = (0, 0, 0, 1)
         self.bold = True
@@ -76,7 +99,7 @@ class MenuBar(BoxLayout):
         self.menu_down = False
         #File Menu
         treeview_file = MenuTreeView()
-        items = ["Open...", "Save", "Save As..", "Sync git repo", "Quit.."]
+        items    = ["Open...", "Save", "Save As..", "Sync git repo", "Quit.."]
         for item in items:
             node = TreeViewLabel1(text=item)
             if item in ["Save","Save As.."]:
@@ -99,8 +122,10 @@ class MenuBar(BoxLayout):
         self.add_menu_item("Program", treeview_program)
         return 
     
-    def save_state(self,*kwargs):
-        a = Saver(self.canvas_area)
+    def save_state(self, node_selected, value):
+        if value == True:
+            a = Saver(self.canvas_area)
+            
     
     def add_menu_item(self,item_name,treeview_object):
         #Create a button with the name 'item_name'
@@ -133,7 +158,7 @@ class MenuBar(BoxLayout):
             self.menu_down = True
         else:
             children_list = list(menu_list.children)
-            las_child = children_list[len(children_list)-1]
+            last_child = children_list[len(children_list)-1]
             menu_list.clear_widgets()
             self.space_siblings(menu_list.parent, menu_list, False)
             menu_list.add_widget(last_child)

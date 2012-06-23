@@ -1,4 +1,3 @@
-
 import kivy
 kivy.require('1.0.9')
 
@@ -39,7 +38,6 @@ Builder.load_string('''#:kivy 1.0.9
     treeview:treeview
     win:win
     leftbox:leftbox
-    #widget_box:widget_box
     BoxLayout:
         id:win
         orientation:'horizontal'
@@ -60,11 +58,7 @@ Builder.load_string('''#:kivy 1.0.9
                     Rectangle:
                         pos: self.x, self.y
                         size: self.width,self.top
-                Label:
-                    color:0,0,0,1
-                    text:'Canvas Area'
-                    text_size:(300,300)
-                    pos:150,200
+                
         #widgets box
         BoxLayout:
             size_hint:.3,1
@@ -74,6 +68,11 @@ Builder.load_string('''#:kivy 1.0.9
                     size_hint_y: None
                     hide_root: True
                     height: self.minimum_height
+    Label:
+        color:0,0,0,1
+        text:'Canvas Area'
+        text_size:(300,300)
+        pos: 50, 100
             ''')
 
 class Designer(FloatLayout):
