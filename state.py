@@ -60,7 +60,7 @@ class Saver():
         diff_dict = {}
         module_name = widget.__class__.__module__
         class_name = widget.__class__.__name__
-        # TODO : Check if this class is already register. If so, don't register again.
+        # TODO : Check if this class is already registered. If so, don't register again.
         Factory.register(class_name, module=module_name)
         factory_caller = getattr(Factory, class_name)
         new_widget = factory_caller()
@@ -110,15 +110,15 @@ class Saver():
         Will this lead to problems later on? '''
         for prop, value in diff_dict.iteritems():
             if isinstance(value, bool):
-                print "{0}{1} : {2}".format(tab_string, prop, str(value))
+                print "{0}{1}:{2}".format(tab_string, prop, str(value))
                 continue
             if isinstance(value, float):
-                print "{0}{1} : {2}".format(tab_string, prop, value)
+                print "{0}{1}:{2}".format(tab_string, prop, value)
                 continue
             if isinstance(value, str):
                 #We have to escape "" if its a blank string
                 value = "\"" + value + "\""
-                print "{0}{1} : {2}".format(tab_string, prop, value)
+                print "{0}{1}:{2}".format(tab_string, prop, value)
             else:
                 pass
                 #print "NO" + prop + repr(value) 
