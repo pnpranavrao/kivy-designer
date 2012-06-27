@@ -105,10 +105,12 @@ class Saver():
     def print_diffdict(self, diff_dict, tab_string ):
         ''' This function prints properties according to a 
         tab_string level when passed a diff_dict'''
-        '''FIX-This : Here we cannot check for Numeric, Boolean, and
+        '''Fix-This : Here we cannot check for Numeric, Boolean, and
         other properties. All this must be done while constructing the diffdict
         Will this lead to problems later on? '''
-        for prop, value in diff_dict.iteritems():
+        items = diff_dict.items()
+        items.sort()
+        for prop, value in items:
             if isinstance(value, bool):
                 print "{0}{1}:{2}".format(tab_string, prop, str(value))
                 continue
@@ -116,9 +118,11 @@ class Saver():
                 print "{0}{1}:{2}".format(tab_string, prop, value)
                 continue
             if isinstance(value, str):
-                #We have to escape "" if its a blank string
-                value = "\"" + value + "\""
-                print "{0}{1}:{2}".format(tab_string, prop, value)
+                if prop == "id":
+                    print "{0}{1}:{2}".format(tab_string, prop, value)
+                else:
+                    value = "\"" + value + "\""
+                    print "{0}{1}:{2}".format(tab_string, prop, value)
             else:
                 pass
                 #print "NO" + prop + repr(value) 

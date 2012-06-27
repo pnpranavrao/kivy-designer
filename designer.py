@@ -85,6 +85,11 @@ class Designer(FloatLayout):
     
     def __init__(self, **kwargs):
         super(Designer, self).__init__(**kwargs)
+        self.root_name = ""
+        
+        # A count variable to give ids to generated widget
+        self.count = 0
+
         #This variable updates to True when ctrl is pressed
         self.ctrl_pressed = False
         
@@ -213,6 +218,7 @@ class Designer(FloatLayout):
     def rebuild_menu(self, node, value, parent = None):
         '''This function is called when a widget needs to be added 
         as a child to one of the added layouts in the canvas area'''
+        print "in Designer" + str(parent)
         if value:
             self.rightbox.clear_widgets()
             self.widgetbar.build_menu(parent = parent)
@@ -251,6 +257,10 @@ class Designer(FloatLayout):
         self.gtranslate.xy = Vector(widget.to_window(*widget.pos))
         self.grotate.angle = angle
         self.gscale.scale = scale
+    
+    def give_id(self):
+        self.count = self.count + 1
+        return "widget"+str(self.count) 
     
 class DesignerApp(App):
 

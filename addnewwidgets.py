@@ -16,6 +16,10 @@ import weakref
 from functools import partial
 from kivy.graphics import Color, Rectangle, PushMatrix, PopMatrix, \
         Translate, Rotate, Scale
+from kivy.uix.popup import Popup
+from kivy.uix.textinput import TextInput
+from kivy.uix.button import Button
+from kivy.uix.boxlayout import BoxLayout
 
 Builder.load_string('''#:kivy 1.0.9
 <NewWidgetsMenu>:
@@ -68,6 +72,7 @@ class NewWidgetsMenu(ScrollView):
         super(NewWidgetsMenu, self).__init__(**kwargs)
         self.designer = designer
         self.canvas_area = designer.canvas_area
+        self.popup = None
         
         keys=[]
         layout_keys = []
@@ -123,8 +128,21 @@ class NewWidgetsMenu(ScrollView):
         * From the basic menu, where the widget needs to be added to 'canvas_area'
         * From a nested menu, where the widget needs to be added to a layout.
         It creates the widget and binds it with drag function'''
+        #print "In add_new_widgets" + str(parent)
         if instance.is_selected:
             parent = parent or self.canvas_area
+            if self.designer.root_name == "":
+                # We dont have the root class's name.
+                content = BoxLayout(orientation = 'vertical')
+                textbox = TextInput(text = '')
+                btn = Button(text = "Save", size_hint_y = .2)
+                btn.bind(on_release = partial(self.save_popup, textbox))
+                content.add_widget(textbox)
+                content.add_widget(btn)
+                self.popup = Popup(title='Enter root class\'s name',
+                              content=content,
+                              size_hint=(None, None), size=(400, 200))
+                self.popup.open()
             class_name = instance.text
             factory_caller = getattr(Factory, class_name)
             new_widget = factory_caller(size_hint=(0.2, 0.2),\
@@ -135,11 +153,17 @@ class NewWidgetsMenu(ScrollView):
                     Color(0.5, 0.5, 0.5, .5)
                     Rectangle(pos = new_widget.pos, size = new_widget.size)
                 new_widget.bind(pos = self.designer.redraw_canvas,size = self.designer.redraw_canvas)
+            new_widget.id = self.designer.give_id()
             new_widget.bind(on_touch_move = self.designer.drag)
             parent.add_widget(new_widget)
             # Is setting False like below allowed?
             instance.is_selected = False
     
+    def save_popup(self, textbox, button):
+        if self.popup:
+            self.popup.dismiss()
+        self.designer.root_name = textbox.text
+        
     def build_menu(self, parent = None):
         '''This is a general purpose function that builds the
         main menu at anytime using self.saved_nodes
