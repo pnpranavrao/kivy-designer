@@ -218,7 +218,6 @@ class Designer(FloatLayout):
     def rebuild_menu(self, node, value, parent = None):
         '''This function is called when a widget needs to be added 
         as a child to one of the added layouts in the canvas area'''
-        print "in Designer" + str(parent)
         if value:
             self.rightbox.clear_widgets()
             self.widgetbar.build_menu(parent = parent)

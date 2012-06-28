@@ -20,6 +20,7 @@ from kivy.uix.popup import Popup
 from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 from kivy.uix.boxlayout import BoxLayout
+import copy
 
 Builder.load_string('''#:kivy 1.0.9
 <NewWidgetsMenu>:
@@ -74,8 +75,8 @@ class NewWidgetsMenu(ScrollView):
         self.canvas_area = designer.canvas_area
         self.popup = None
         
-        keys=[]
-        layout_keys = []
+        self.keys=[]
+        self.layout_keys = []
         for cls in self.widget_list:
             if cls == "Camera":
                 '''This is because there seems to be some bug in Gstreamer
@@ -85,16 +86,16 @@ class NewWidgetsMenu(ScrollView):
                 factory_caller = getattr(Factory, str(cls))
                 new_widget = factory_caller()
                 if isinstance(new_widget, Layout):
-                    layout_keys.append(cls)
+                    self.layout_keys.append(cls)
                     continue
                 if isinstance(new_widget, Widget):
-                    keys.append(cls)
+                    self.keys.append(cls)
             except Exception as err:
                 pass
                 #self.status_bar.print_status(err.message)
-        keys.append('Camera')
-        keys.sort()
-        layout_keys.sort()
+        self.keys.append('Camera')
+        self.keys.sort()
+        self.layout_keys.sort()
         
         '''Adding all the widgets to the menu'''
         node = TreeViewLabel(text= " Widgets", bold = True, \
@@ -102,10 +103,11 @@ class NewWidgetsMenu(ScrollView):
         self.treeview.add_node(node)
         self.saved_nodes.append(node)
         node = None
-        for key in keys:
+        for key in self.keys:
             text = '%s' % key
             node = TreeViewLabel(text=text)
-            self.saved_nodes.append(node)
+            node_copy = copy.copy(node)
+            self.saved_nodes.append(node_copy)
             node.bind(is_selected = self.add_new_widget)
             self.treeview.add_node(node)
             
@@ -115,12 +117,14 @@ class NewWidgetsMenu(ScrollView):
                              color=[.25, .5, .6, 1])
         self.treeview.add_node(node)
         self.saved_nodes.append(node)
-        for key in layout_keys:
+        for key in self.layout_keys:
             text = '%s' % key
             node = TreeViewLabel(text = text)
+            node_copy = copy.copy(node)
+            self.saved_nodes.append(node_copy)
             node.bind(is_selected = self.add_new_widget)
             self.treeview.add_node(node)
-            self.saved_nodes.append(node)
+            
         
     def add_new_widget(self, instance, value, parent = None):
         '''This function is called whenever a new widget needs to be added
@@ -128,7 +132,6 @@ class NewWidgetsMenu(ScrollView):
         * From the basic menu, where the widget needs to be added to 'canvas_area'
         * From a nested menu, where the widget needs to be added to a layout.
         It creates the widget and binds it with drag function'''
-        #print "In add_new_widgets" + str(parent)
         if instance.is_selected:
             parent = parent or self.canvas_area
             if self.designer.root_name == "":
@@ -166,8 +169,14 @@ class NewWidgetsMenu(ScrollView):
         
     def build_menu(self, parent = None):
         '''This is a general purpose function that builds the
-        main menu at anytime using self.saved_nodes
-        Its main use case is to display addable widgets and 
+        main menu at anytime. Note that it binds each node to 
+        self.add_new_widget. 
+        I should really aim at making a build_menu function that 
+        accepts a partial object as its argument and 
+        binds it to each node. But currently the unbinding is too
+        messy to spend time on as I am not using it anywhere else.
+        
+        This function's main use case is to display addable widgets and 
         layouts to a selected layout in canvas_area.
         It is called from Designer.rebuild_menu() '''
         
@@ -177,9 +186,29 @@ class NewWidgetsMenu(ScrollView):
         #Delete them.
         for node in temp:
             treeview.remove_node(node)
+        keys = self.keys
+        layout_keys = self.layout_keys    
         
-        for node in self.saved_nodes:
+        '''Adding all the widgets to the menu'''
+        node = TreeViewLabel(text= " Widgets", bold = True, \
+                             color=[.25, .5, .6, 1])
+        self.treeview.add_node(node)
+        for key in keys:
+            text = '%s' % key
+            node = TreeViewLabel(text=text)
             node.bind(is_selected = partial(self.add_new_widget, parent = parent))
-            treeview.add_node(node)
-
+            self.treeview.add_node(node)
+            
+        
+        '''Adding all the Layouts to the menu'''
+        node = TreeViewLabel(text= "Layouts ", bold = True, \
+                             color=[.25, .5, .6, 1])
+        self.treeview.add_node(node)
+        for key in layout_keys:
+            text = '%s' % key
+            node = TreeViewLabel(text = text)
+            node.bind(is_selected = partial(self.add_new_widget, parent = parent))
+            self.treeview.add_node(node)
+            
+      
 
