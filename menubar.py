@@ -18,6 +18,8 @@ import random
 import weakref
 from functools import partial
 from state import Saver
+from kivy.uix.filechooser import FileChooserListView
+from kivy.uix.popup import Popup
 
 Builder.load_string('''#:kivy 1.0.9
 <MenuBar>:
@@ -95,10 +97,12 @@ class MenuBar(BoxLayout):
           super(MenuBar, self).on_touch_down(touch)
           return True
         
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         super(MenuBar,self).__init__(**kwargs)
         self.canvas_area = kwargs.get('canvas_area')
         self.menu_down = False
+        self.designer = kwargs.get('designer')
+        
         #File Menu
         treeview_file = MenuTreeView()
         items    = ["Open...", "Save", "Save As..", "Sync git repo", "Quit.."]
@@ -126,8 +130,13 @@ class MenuBar(BoxLayout):
     
     def save_state(self, node_selected, value):
         if value == True:
-            a = Saver(self.canvas_area)
+            Saver(self.designer, self.canvas_area)
             
+    def save_implement(self, filechooser, *largs):
+        self.designer.popup.content = None
+        print filechooser.selection
+        print self.designer.status_bar.print_status("File saved")
+        Saver(self.canvas_area)
     
     def add_menu_item(self,item_name,treeview_object):
         #Create a button with the name 'item_name'

@@ -3,11 +3,113 @@ from kivy.factory import Factory
 from kivy.properties import ObjectProperty, BooleanProperty, ListProperty, \
         NumericProperty, StringProperty, OptionProperty, \
         ReferenceListProperty, AliasProperty
+from kivy.lang import Builder
+from kivy.uix.button import Button
+from kivy.uix.filechooser import FileChooserListView
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.popup import Popup
+from functools import partial
+import sys
+from os.path import isdir
 
+Builder.load_string('''#:kivy 1.0.9
+<SavePopup>:
+    orientation:'vertical'
+    filechooser:filechooser
+    FileChooserListView:
+        id:filechooser
+        dirselect:True
+    BoxLayout:
+        size_hint_y:0.2
+        Button:
+            text:"Create new file here"
+            on_release:root.create_file()
+        Button:
+            text:"Save"
+            on_release:root.save(filechooser)
+<Inputfile>:
+    textbox:textbox
+    orientation:'vertical'
+    TextInput:
+        id:textbox
+    Button:
+        size_hint_y:.2
+        text:"Create this file and save"
+        on_press:root.create_file(root.textbox)
+            ''')
+class Inputfile(BoxLayout):
+    ''' A class for Designer.popup's 'content' field.
+    This is used to accept a  new file name'''
+    textbox = ObjectProperty(None)
+    
+    def __init__(self, **kwargs):
+        super(Inputfile, self).__init__(**kwargs)
+        self.popup = kwargs.get('popup')
+        self.designer = kwargs.get('designer')
+        self.dir_path = kwargs.get('dir_path')
 
+    def create_file(self, textbox, *largs):
+        ''' A function bounded to the save button. Grabs the text in the text box 
+        stores it in self.designer.file'''
+        file_name = textbox.text
+        # Fix-this : need to add platform specific separator here!
+        self.designer.file = self.dir_path +"/"+ file_name
+        self.popup.dismiss()
+
+class SavePopup(BoxLayout):
+    ''' A class for Designer.popup's 'content' field.
+    This is used to display the filechooser interface'''
+    filechooser = ObjectProperty(None)
+    
+    def __init__(self, **kwargs):
+        super(SavePopup, self).__init__(**kwargs)
+        self.popup = kwargs.get('popup')
+        self.designer = kwargs.get('designer')
+        
+    def save(self, filechooser, **kwargs):
+        selected = filechooser.selection
+        if selected:
+            file = selected[0]
+            if isdir(file):
+                #Ignore. A file needs to be selected, not a folder.
+                self.designer.status_bar.print_status\
+                ("You need to select a file, not a folder for this option to work")
+            else:
+                self.designer.file = file
+                self.popup.dismiss()
+        else:
+            self.designer.status_bar.print_status("Select a file, and then click save")
+        
+    def create_file(self, *largs):
+        ''' A function bounded to the "Create new file" button in SavePopup.
+        It clears  'content' and puts in the 'Inputfile' class as the new 'content'.
+        So we can now accept the new filename given by the user'''
+        selected = self.filechooser.selection
+        if selected:
+            #We need to check if this is a directory or a file.
+            dir_path = selected[0]
+            if isdir(dir_path):
+                #prompt for filename
+                input_box = Inputfile(popup = self.popup, designer = self.designer, dir_path = dir_path)
+                self.popup.title = "Enter the new file name in {0}".format(dir_path.encode('ascii'))
+                self.popup.content = input_box
+            else : 
+                self.designer.status_bar.print_status(" You need to select a folder, not a file")
+            #Fix-this : Improve this. Something more intuitive
+        else:
+            self.designer.status_bar.print_status("Please make a selection and then click")
+            
 class Saver():
     
-    def __init__(self,root):
+    def __init__(self, designer, root, *kwargs):
+        self.designer = designer
+        #Popup to specify where the generated .py file should be saved
+        content = SavePopup(popup = self.designer.popup, designer = self.designer)
+        self.designer.popup = Popup(title='Select location to save generated file',
+                          content=content,
+                          size_hint=(None, None), size=(400, 400))
+        self.designer.popup.open()
+        self.designer.popup.bind(on_dismiss = partial(self.write_file, "SavePopup"))
         # Holds the root node of the widget tree.
         self.root = root
         # Dictionary containing ids of every child widget in the tree
@@ -15,13 +117,28 @@ class Saver():
         # Dictionary containing all imports to be made in the generated program 
         self.imports = {}
         self.find_imports()
-        self.print_imports()
         self.find_ids(root)
-        print "### -- Start generated kv rules"
-        print "Builder.load_string(\""
-        self.generate_kv(root)
-        print "\""
         
+    def write_file(self, popup_type, *largs):
+        '''A function to write the file to disk using file information
+        from self.designer.file'''
+        if popup_type == "SavePopup":
+            if self.designer.file != "":
+                self.designer.file = self.designer.file.encode('ascii')
+                try:
+                    sys.stdout = open(self.designer.file, 'w')
+                    self.print_imports()
+                    print "### -- Start generated kv rules"
+                    print "Builder.load_string(\""
+                    self.generate_kv(self.root)
+                    print "\""
+                    self.designer.status_bar.print_status\
+                    ("All okay. File saved at {0}".format(self.designer.file.encode('ascii')))
+                    sys.stdout = sys.__stdout__
+                except Exception as err:
+                    self.designer.file = ""
+                    print err
+            
     def find_ids(self,root):
         ''' A utility funtion to recursively travel from the root node
         and extract the id of every widget in the whole tree'''

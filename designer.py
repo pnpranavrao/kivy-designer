@@ -86,6 +86,8 @@ class Designer(FloatLayout):
     def __init__(self, **kwargs):
         super(Designer, self).__init__(**kwargs)
         self.root_name = ""
+        self.popup = None
+        self.file = ""
         
         # A count variable to give ids to generated widget
         self.count = 0
@@ -94,7 +96,7 @@ class Designer(FloatLayout):
         self.ctrl_pressed = False
         
         #Instantiate MenuBar
-        self.menubar = MenuBar(pos_hint = {'x':0,'top':1}, \
+        self.menubar = MenuBar(designer = self, pos_hint = {'x':0,'top':1}, \
                             canvas_area = self.canvas_area, size_hint = (.70,None),height = 25)
         self.add_widget(self.menubar)
         
