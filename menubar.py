@@ -110,6 +110,8 @@ class MenuBar(BoxLayout):
             node = TreeViewLabel1(text=item)
             if item in ["Save","Save As.."]:
                 node.bind(is_selected = self.save_state)
+            if item == "Open...":
+                node.bind(is_selected = self.designer.import_widget)
             treeview_file.add_node(node)
         #Edit menu
         treeview_edit = MenuTreeView()
@@ -130,8 +132,12 @@ class MenuBar(BoxLayout):
     
     def save_state(self, node_selected, value):
         if value == True:
-            Saver(self.designer, self.canvas_area)
-            
+            try:
+                Saver(self.designer, self.canvas_area.children[0])
+            except IndexError:
+                self.designer.status_bar.print_status\
+                ("Create a root widget before attempting to save!")
+                
     def save_implement(self, filechooser, *largs):
         self.designer.popup.content = None
         print filechooser.selection

@@ -148,15 +148,21 @@ class NewWidgetsMenu(ScrollView):
                 self.popup.open()
             class_name = instance.text
             factory_caller = getattr(Factory, class_name)
-            new_widget = factory_caller(size_hint=(0.2, 0.2),\
-                                        pos=self.canvas_area.pos)
+            #If this this the first widget to be added to the canvas, then 
+            # it will be taken as root, and given a larger size_hint.
+            if self.canvas_area.children:
+                new_widget = factory_caller(size_hint=(0.2, 0.2),\
+                                            pos=self.canvas_area.pos)
+                new_widget.id = self.designer.give_id()
+            else:
+                new_widget = factory_caller(size_hint=(0.8, 0.8),\
+                                            pos=self.canvas_area.pos)
             '''If the new_widget is a Layout, we need to handle it a bit differently'''
             if isinstance(new_widget, Layout):
                 with new_widget.canvas:
                     Color(0.5, 0.5, 0.5, .5)
                     Rectangle(pos = new_widget.pos, size = new_widget.size)
                 new_widget.bind(pos = self.designer.redraw_canvas,size = self.designer.redraw_canvas)
-            new_widget.id = self.designer.give_id()
             new_widget.bind(on_touch_move = self.designer.drag)
             parent.add_widget(new_widget)
             # Is setting False like below allowed?

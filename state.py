@@ -116,8 +116,8 @@ class Saver():
         self.child_dict = {}
         # Dictionary containing all imports to be made in the generated program 
         self.imports = {}
-        self.find_imports()
         self.find_ids(root)
+        self.find_imports()
         
     def write_file(self, popup_type, *largs):
         '''A function to write the file to disk using file information
@@ -129,22 +129,39 @@ class Saver():
                     sys.stdout = open(self.designer.file, 'w')
                     self.print_imports()
                     print "### -- Start generated kv rules"
-                    print "Builder.load_string(\""
+                    print "\nBuilder.load_string(\'\'\'"
+                    print "#:import QueryDict kivy.utils.QueryDict"
                     self.generate_kv(self.root)
-                    print "\""
+                    print "\'\'\')"
+                    self.print_classbody()
                     self.designer.status_bar.print_status\
                     ("All okay. File saved at {0}".format(self.designer.file.encode('ascii')))
                     sys.stdout = sys.__stdout__
                 except Exception as err:
                     self.designer.file = ""
                     print err
+    
+    def print_classbody(self):
+        ''' A function to print the class body :  Mainly the class definition, 
+        and the __init__ stubs '''
+        designer = self.designer
+        root_name = designer.root_name
+        #We need to encourage having a root widget as the only child of Designer.canvas_area
+        root_classtype = designer.canvas_area.children[0].__class__.__name__
+        print "\n"
+        print "##- Start generated class body -##"
+        print "class {0}({1}):".format(root_name, root_classtype)
+        tab = "    "
+        print "\n" + tab + "ids = DictProperty({})"
+        print "\n" + tab + "def __init__(self, **kwargs):"
+        tab = tab+tab
+        print tab + "super({0}, self).__init__(**kwargs)".format(root_name)
             
     def find_ids(self,root):
         ''' A utility funtion to recursively travel from the root node
         and extract the id of every widget in the whole tree'''
         for child in root.children:
             self.child_dict[child]=child.id
-            #print self.find_diff(child)
             if len(child.children) is not 0:
                 self.find_ids(child)
     
@@ -155,11 +172,22 @@ class Saver():
         for widget in widgets:
             module_name = widget.__class__.__module__
             class_name = widget.__class__.__name__
+            #We don't want duplicates
+            if not self.imports.has_key(class_name):
+                self.imports[class_name] = module_name
+        #This won't include the root widget's imports.
+        # So we add that separately
+        module_name = self.root.__class__.__module__
+        class_name = self.root.__class__.__name__
+        if not self.imports.has_key(class_name):
             self.imports[class_name] = module_name
             
     def print_imports(self):
+        '''Print imports in the proper format using module information 
+        stored in the dictionary self.imports'''
         print "### -- Start of imports --- ###"
         print "from kivy.lang import Builder"
+        print "from kivy.properties import DictProperty"
         for key, value in self.imports.iteritems():
             print "from {0} import {1}".format(value, key)
         print "### -- End of imports --- ###"
@@ -205,7 +233,9 @@ class Saver():
         root's properties should should start printing.'''
         class_name = root.__class__.__name__
         if tab_string == "":
-            print "<{0}>:".format(class_name)
+            #We are at the beginning. 
+            #We should print root widget class's name
+            print "<{0}>:".format(self.designer.root_name)
         else:
             print "{0}{1}:".format(tab_string,class_name)
         # Increment tab_string by 4 spaces
@@ -213,9 +243,18 @@ class Saver():
         # Construct diff_dict of present root widget
         diff_dict = self.find_diff(root)
         self.print_diffdict(diff_dict, tab_string)
+        #We have to add the QueryDict of ids in the root's properties
+        if tab_string == "    ":
+            argument = ""
+            for value in self.child_dict.values():
+                argument = argument+ "\'{0}\':{0}, ".format(value)
+            # Need to remove last trailing comma and space
+            argument = "{" + argument[0:-2] + "}"
+            print tab_string + "ids:QueryDict({0})".format(argument)
+
         children = root.children
         # Recursively repeat the above process for 
-        # .. the current root widget
+        # the current root widget
         for child in children:
             self.generate_kv(child, tab_string = tab_string)
         

@@ -1,6 +1,8 @@
 import kivy
 kivy.require('1.0.9')
 
+import sys
+import inspect
 from kivy.app import App
 from kivy.uix.widget import Widget
 from kivy.uix.button import Button
@@ -146,15 +148,19 @@ class Designer(FloatLayout):
         if modifiers == 'ctrl':
             self.ctrl_pressed = False
     
-    def redraw_canvas(self,widget,*kwargs):
+    def redraw_canvas(self, widget, *kwargs):
         ''' This function redraws the canvas of 'Layout' widgets whenever they are
         moved or resized so that it is easy to recognize them in the canvas_area.
         As the 'Layout' widgets themselves dont have a representation.'''
         widget.canvas.clear()
+        thickness = 5
         with widget.canvas:
              Color(0.5, 0.5, 0.5, .5)
-             Rectangle(pos = widget.pos, size = widget.size)
-    
+             Rectangle(pos = widget.pos, size = (thickness, widget.height))
+             Rectangle(pos = widget.pos, size = (widget.width, thickness))
+             Rectangle(pos = (widget.x,widget.top), size = (widget.width, thickness))
+             Rectangle(pos = (widget.x + widget.width, widget.y), size = (thickness, widget.height))
+                  
     def drag(self, widget, touch):
         ''' This function moves the widget in the canvas_area when it is 
         dragged (on_touch_move of the widget is called)'''
@@ -262,6 +268,21 @@ class Designer(FloatLayout):
     def give_id(self):
         self.count = self.count + 1
         return "widget"+str(self.count) 
+    
+    def import_widget(self, *kwargs):
+        #For testing. Point this to your generated kv file
+        file_path = "~/github/kivy-designer/kv_test.py"
+        #Change separator for non-unix systems
+        file_name = file_path.split("/")[-1]
+        file_headpath = file_path.split(file_name)[0]
+        sys.path.append(file_headpath)
+        imported_file = __import__(file_name[0:-3])
+        for name, value in inspect.getmembers(imported_file):
+            if inspect.isclass(value):
+                module_name =  value.__module__
+                if module_name == file_name[0:-3]:
+                    temp_widget = value()
+                    self.canvas_area.add_widget(temp_widget)
     
 class DesignerApp(App):
 
