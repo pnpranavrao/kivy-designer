@@ -105,13 +105,15 @@ class MenuBar(BoxLayout):
         
         #File Menu
         treeview_file = MenuTreeView()
-        items    = ["Open...", "Save", "Save As..", "Sync git repo", "Quit.."]
+        items    = ["Open...", "Save", "Save As..", "Sync git repo", "Refresh WidgetTree"]
         for item in items:
             node = TreeViewLabel1(text=item)
             if item in ["Save","Save As.."]:
                 node.bind(is_selected = self.save_state)
             if item == "Open...":
                 node.bind(is_selected = self.designer.import_widget)
+            if item == "Refresh WidgetTree":
+                node.bind(is_selected = self.designer.widget_tree.refresh)
             treeview_file.add_node(node)
         #Edit menu
         treeview_edit = MenuTreeView()

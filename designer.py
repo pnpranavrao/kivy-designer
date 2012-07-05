@@ -30,11 +30,13 @@ from state import Saver
 from statusbar import StatusBar
 from addnewwidgets import NewWidgetsMenu
 from showproperties import PropertiesMenu
+from widgettree import WidgetTree
 
 Builder.load_string('''#:kivy 1.0.9
 <Designer>:
     canvas_area:canvas_area
     win:win
+    widget_tree_box:widget_tree_box
     leftbox:leftbox
     rightbox:rightbox
     BoxLayout:
@@ -42,19 +44,30 @@ Builder.load_string('''#:kivy 1.0.9
         orientation:'horizontal'
         #Leftbox
         BoxLayout:
-            id:leftbox
+            orientation:'horizontal'
             size_hint:.7,1
-            orientation:'vertical'
-            #Canvas box
-            FloatLayout:
-                size_hint:1,.95
-                id:canvas_area
-                canvas:
-                    Color:
-                        rgb:.9,.9,.8,
-                    Rectangle:
-                        pos: self.x, self.y
-                        size: self.width,self.top
+            #WidgetTree
+            BoxLayout:
+                orientation:'vertical'
+                id:widget_tree_box
+                size_hint_x:0.3
+                Widget:
+                    #This is a dummy widget to allow space for the menubar
+                    size_hint_y:0.05
+            #Canvas_Area and StatusBar
+            BoxLayout:
+                id:leftbox
+                orientation:'vertical'
+                #Canvas box
+                FloatLayout:
+                    size_hint:1,.95
+                    id:canvas_area
+                    canvas:
+                        Color:
+                            rgb:.9,.9,.8,
+                        Rectangle:
+                            pos: self.x, self.y
+                            size: self.width,self.top
         #Right box
         BoxLayout:
             id:rightbox
@@ -76,6 +89,7 @@ class Designer(FloatLayout):
     rightbox = ObjectProperty(None)
     win = ObjectProperty(None)
     menubar = ObjectProperty(None)
+    widget_tree = ObjectProperty(None)
     widgetbar = None
     
     numeric_keys = ObjectProperty(None)
@@ -96,6 +110,10 @@ class Designer(FloatLayout):
 
         #This variable updates to True when ctrl is pressed
         self.ctrl_pressed = False
+        
+        #Instantiate the WidgetTree
+        self.widget_tree = WidgetTree(self)
+        self.widget_tree_box.add_widget(self.widget_tree)
         
         #Instantiate MenuBar
         self.menubar = MenuBar(designer = self, pos_hint = {'x':0,'top':1}, \
