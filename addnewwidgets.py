@@ -165,6 +165,8 @@ class NewWidgetsMenu(ScrollView):
                 new_widget.bind(pos = self.designer.redraw_canvas,size = self.designer.redraw_canvas)
             new_widget.bind(on_touch_move = self.designer.drag)
             parent.add_widget(new_widget)
+            #We need to refresh the Widget tree
+            self.designer.widget_tree.refresh()
             # Is setting False like below allowed?
             instance.is_selected = False
     

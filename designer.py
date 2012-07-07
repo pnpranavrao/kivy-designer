@@ -146,6 +146,7 @@ class Designer(FloatLayout):
         # self.widget -> updated on_touch_down in 'canvas_area'
         # So, whenever we have a new self.widget, we call show_properties
         self.bind(widget = self.show_properties)
+        self.bind(widget = self.widget_tree.select_highlighted)
         
     def _keyboard_closed(self):
         '''Default keyboard closer necessary for initializing a keyboard'''
@@ -204,8 +205,6 @@ class Designer(FloatLayout):
             else:
                 self.widget = None
             super(Designer, self).on_touch_down(touch)
-            #Note that I am not passing touches to canvas_area's children
-            #You might need to do it for enabling interactive testing later on
         return True
         
     def pick(self, widget, x, y):
@@ -251,10 +250,11 @@ class Designer(FloatLayout):
         
     def delete_item(self, instance, *largs):
         if instance.is_selected:
-            #canvas_area = self.canvas_area
             parent = self.widget.parent
             parent.remove_widget(self.widget)
             self.clear_selection(True)
+            #We also need to refresh the widget tree
+            self.widget_tree.refresh()
             
     def clear_selection(self,*kwargs):
         '''This function takes away the highlight 
