@@ -51,6 +51,8 @@ class WidgetTree(ScrollView):
             self.treeview.get_root().bind(is_selected = partial(self.notify_canvas, self.root))
             self.widget_dict[self.treeview.get_root().uid] = self.root
             self.draw_tree(self.root, self.treeview.get_root())
+        else:
+            self.clear_tree(self.treeview)
             
     def draw_tree(self, root, root_node):
         '''A recursive function to traverse the complete widget tree and

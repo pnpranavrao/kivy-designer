@@ -253,7 +253,15 @@ class Designer(FloatLayout):
             parent = self.widget.parent
             parent.remove_widget(self.widget)
             self.clear_selection(True)
-            #We also need to refresh the widget tree
+            if not self.canvas_area.children:
+                self.root_name = ""
+                #Instantiate the WidgetTree again if the 
+                #root widget itself was deleted. We have to do this as
+                # treeview.remove all nodes wont remove the root at all.
+                self.widget_tree_box.remove_widget(self.widget_tree)
+                self.widget_tree = WidgetTree(self)
+                self.widget_tree_box.add_widget(self.widget_tree)
+            #Refresh the widget tree
             self.widget_tree.refresh()
             
     def clear_selection(self,*kwargs):

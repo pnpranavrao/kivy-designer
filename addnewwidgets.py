@@ -174,6 +174,7 @@ class NewWidgetsMenu(ScrollView):
         if self.popup:
             self.popup.dismiss()
         self.designer.root_name = textbox.text
+        self.designer.widget_tree.refresh()
         
     def build_menu(self, parent = None):
         '''This is a general purpose function that builds the
