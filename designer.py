@@ -295,21 +295,6 @@ class Designer(FloatLayout):
         self.count = self.count + 1
         return "widget"+str(self.count) 
     
-    def import_widget(self, *kwargs):
-        #For testing. Point this to your generated kv file
-        file_path = "~/github/kivy-designer/kv_test.py"
-        #Change separator for non-unix systems
-        file_name = file_path.split("/")[-1]
-        file_headpath = file_path.split(file_name)[0]
-        sys.path.append(file_headpath)
-        imported_file = __import__(file_name[0:-3])
-        for name, value in inspect.getmembers(imported_file):
-            if inspect.isclass(value):
-                module_name =  value.__module__
-                if module_name == file_name[0:-3]:
-                    temp_widget = value()
-                    self.canvas_area.add_widget(temp_widget)
-    
 class DesignerApp(App):
 
     tool = ObjectProperty(None)

@@ -20,6 +20,7 @@ from functools import partial
 from state import Saver
 from kivy.uix.filechooser import FileChooserListView
 from kivy.uix.popup import Popup
+from importer import Importer
 
 Builder.load_string('''#:kivy 1.0.9
 <MenuBar>:
@@ -111,7 +112,7 @@ class MenuBar(BoxLayout):
             if item in ["Save","Save As.."]:
                 node.bind(is_selected = self.save_state)
             if item == "Open...":
-                node.bind(is_selected = self.designer.import_widget)
+                node.bind(is_selected = partial(Importer, self.designer))
             if item == "Refresh WidgetTree":
                 node.bind(is_selected = self.designer.widget_tree.refresh)
             treeview_file.add_node(node)
