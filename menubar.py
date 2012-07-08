@@ -95,8 +95,8 @@ class MenuBar(BoxLayout):
                 super(MenuBar, self).on_touch_down(touch)
             return True
         elif self.collide_point(*touch.pos):
-          super(MenuBar, self).on_touch_down(touch)
-          return True
+            super(MenuBar, self).on_touch_down(touch)
+            return True
         
     def __init__(self, **kwargs):
         super(MenuBar,self).__init__(**kwargs)
