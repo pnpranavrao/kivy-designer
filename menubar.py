@@ -106,13 +106,13 @@ class MenuBar(BoxLayout):
         
         #File Menu
         treeview_file = MenuTreeView()
-        items    = ["Open...", "Save", "Save As..", "Sync git repo", "Refresh WidgetTree"]
+        items = ["Open...", "Save", "Save As..", "Sync git repo", "Refresh WidgetTree"]
         for item in items:
             node = TreeViewLabel1(text=item)
             if item in ["Save","Save As.."]:
-                node.bind(is_selected = self.save_state)
+                node.bind(is_selected = self.call_saver)
             if item == "Open...":
-                node.bind(is_selected = partial(Importer, self.designer))
+                node.bind(is_selected = self.call_importer)
             if item == "Refresh WidgetTree":
                 node.bind(is_selected = self.designer.widget_tree.refresh)
             treeview_file.add_node(node)
@@ -133,14 +133,18 @@ class MenuBar(BoxLayout):
         self.add_menu_item("Program", treeview_program)
         return 
     
-    def save_state(self, node_selected, value):
+    def call_saver(self, node_selected, value):
         if value == True:
             try:
                 Saver(self.designer, self.canvas_area.children[0])
             except IndexError:
                 self.designer.status_bar.print_status\
                 ("Create a root widget before attempting to save!")
-                
+    
+    def call_importer(self, node_selected, value):
+        if value == True:
+            Importer(self.designer)
+            
     def save_implement(self, filechooser, *largs):
         self.designer.popup.content = None
         print filechooser.selection
